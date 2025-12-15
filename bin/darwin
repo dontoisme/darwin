@@ -36,6 +36,7 @@ print_usage() {
     echo "  viewer      Open unified viewer (single/compare/timelapse/map)"
     echo "  status      Show current darwin state"
     echo "  hook        Install/manage git hooks for auto-capture"
+    echo "  manifest    Sync manifest with tests (generate stubs)"
     echo "  version     Show version"
     echo "  help        Show this help message"
     echo ""
@@ -104,6 +105,10 @@ case "${1:-}" in
     status)
         shift
         exec "$SCRIPT_DIR/darwin-status" "$@"
+        ;;
+    manifest)
+        shift
+        exec "$SCRIPT_DIR/darwin-manifest" "$@"
         ;;
     version|--version|-v)
         echo "darwin $VERSION"

@@ -1,0 +1,422 @@
+#!/bin/bash
+#
+# darwin-manifest
+#
+# Sync manifest.json with screenshot tests.
+# Detects missing tests, orphan tests, and can generate stubs.
+#
+# Usage:
+#   darwin manifest sync              # Show diff between manifest and tests
+#   darwin manifest sync --generate   # Generate stub tests for missing screens
+#   darwin manifest validate          # Check for issues in manifest
+#
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LIB_DIR="$SCRIPT_DIR/../lib"
+
+# Source configuration
+if [ -f "$LIB_DIR/config.sh" ]; then
+    source "$LIB_DIR/config.sh"
+fi
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+DIM='\033[2m'
+NC='\033[0m'
+
+# Try to load config
+if load_config 2>/dev/null; then
+    MANIFEST_FILE="$CONFIG_MANIFEST_PATH"
+    # PROJECT_DIR is set by load_config
+    TEST_TARGET="$CONFIG_TEST_TARGET"
+    TEST_CLASS="$CONFIG_TEST_CLASS"
+else
+    PROJECT_DIR="$(pwd)"
+    MANIFEST_FILE="$(pwd)/Screenshots/manifest.json"
+    TEST_TARGET=""
+    TEST_CLASS="ScreenshotTests"
+fi
+
+# Default test file location (can be overridden)
+TEST_FILE=""
+
+# Find the screenshot tests file
+find_test_file() {
+    # If we have testTarget and testClass from config, use them
+    if [ -n "$TEST_TARGET" ] && [ -n "$TEST_CLASS" ]; then
+        local config_path="$PROJECT_DIR/$TEST_TARGET/$TEST_CLASS.swift"
+        if [ -f "$config_path" ]; then
+            echo "$config_path"
+            return 0
+        fi
+    fi
+
+    # Common locations for screenshot tests
+    local candidates=(
+        "$PROJECT_DIR/*UITests/ScreenshotTests.swift"
+        "$PROJECT_DIR/*UITests/Screenshot*.swift"
+        "$PROJECT_DIR/UITests/ScreenshotTests.swift"
+        "$PROJECT_DIR/*Tests/ScreenshotTests.swift"
+        "$PROJECT_DIR/Tests/ScreenshotTests.swift"
+    )
+
+    for pattern in "${candidates[@]}"; do
+        local found=$(ls $pattern 2>/dev/null | head -1)
+        if [ -n "$found" ]; then
+            echo "$found"
+            return 0
+        fi
+    done
+
+    # Try to find any ScreenshotTests.swift
+    find "$PROJECT_DIR" -name "ScreenshotTests.swift" -type f 2>/dev/null | head -1
+}
+
+# Extract screen info from manifest
+get_manifest_screens() {
+    jq -r '.screens | to_entries[] | "\(.key)|\(.value.name)|\(.value.test)|\(.value.sources | join(","))"' "$MANIFEST_FILE" 2>/dev/null
+}
+
+# Extract test methods from Swift file
+get_existing_tests() {
+    if [ -f "$TEST_FILE" ]; then
+        grep -E "^\s*func test[0-9]+_" "$TEST_FILE" | sed 's/.*func \(test[0-9]*_[a-zA-Z0-9_]*\).*/\1/' | sort
+    fi
+}
+
+# Generate a test stub
+generate_test_stub() {
+    local screen_id="$1"
+    local screen_name="$2"
+    local test_name="$3"
+    local sources="$4"
+
+    # Extract test number from test name (e.g., test30 -> 30)
+    local test_num=$(echo "$test_name" | sed 's/test\([0-9]*\)_.*/\1/')
+
+    cat << EOF
+
+    // MARK: - $screen_name (Auto-generated stub)
+
+    func $test_name() throws {
+        // Screen: $screen_name ($screen_id)
+        // Sources: $sources
+        //
+        // TODO: Implement navigation to this screen
+        // 1. Set up required state (relaunchWithState if needed)
+        // 2. Navigate to the screen
+        // 3. Take screenshot
+        //
+        throw XCTSkip("Test stub - needs implementation")
+
+        // Example implementation:
+        // dismissImportDialogIfPresent()
+        // app.navigateToTab(.library)
+        // // ... navigate to screen ...
+        // takeScreenshot("$screen_id")
+    }
+EOF
+}
+
+# Show help
+show_help() {
+    echo -e "${BLUE}🧬 Darwin - Manifest Sync${NC}"
+    echo ""
+    echo "Keep your manifest.json and screenshot tests in sync."
+    echo ""
+    echo "Usage: darwin manifest <command> [options]"
+    echo ""
+    echo "Commands:"
+    echo "  sync              Compare manifest to tests, show what's missing"
+    echo "  sync --generate   Generate stub tests for missing screens"
+    echo "  sync --clean      Show orphan tests not in manifest"
+    echo "  validate          Check manifest for errors"
+    echo ""
+    echo "Options:"
+    echo "  --test-file FILE  Path to ScreenshotTests.swift"
+    echo "  --help            Show this help"
+    echo ""
+    echo "Examples:"
+    echo "  darwin manifest sync                    # See sync status"
+    echo "  darwin manifest sync --generate        # Create missing test stubs"
+    echo "  darwin manifest sync --generate >> ScreenshotTests.swift"
+}
+
+# Validate manifest
+validate_manifest() {
+    echo -e "${BLUE}🧬 Darwin - Manifest Validation${NC}"
+    echo ""
+
+    if [ ! -f "$MANIFEST_FILE" ]; then
+        echo -e "${RED}Error: manifest.json not found at $MANIFEST_FILE${NC}"
+        exit 1
+    fi
+
+    local errors=0
+    local warnings=0
+
+    # Check JSON validity
+    if ! jq empty "$MANIFEST_FILE" 2>/dev/null; then
+        echo -e "${RED}✗ Invalid JSON${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Valid JSON${NC}"
+
+    # Check for required fields
+    local screen_count=$(jq '.screens | length' "$MANIFEST_FILE")
+    echo -e "${GREEN}✓ $screen_count screens defined${NC}"
+
+    # Check each screen has required fields
+    while IFS='|' read -r id name test sources; do
+        if [ -z "$name" ]; then
+            echo -e "${RED}✗ Screen '$id' missing 'name'${NC}"
+            ((errors++))
+        fi
+        if [ -z "$test" ]; then
+            echo -e "${YELLOW}⚠ Screen '$id' missing 'test' method${NC}"
+            ((warnings++))
+        fi
+        if [ -z "$sources" ] || [ "$sources" = "null" ]; then
+            echo -e "${YELLOW}⚠ Screen '$id' has no source files${NC}"
+            ((warnings++))
+        else
+            # Check if source files exist
+            IFS=',' read -ra source_array <<< "$sources"
+            for src in "${source_array[@]}"; do
+                if [ ! -f "$PROJECT_DIR/$src" ]; then
+                    echo -e "${YELLOW}⚠ Screen '$id': source not found: $src${NC}"
+                    ((warnings++))
+                fi
+            done
+        fi
+    done < <(get_manifest_screens)
+
+    echo ""
+    if [ $errors -gt 0 ]; then
+        echo -e "${RED}Found $errors error(s)${NC}"
+        exit 1
+    elif [ $warnings -gt 0 ]; then
+        echo -e "${YELLOW}Found $warnings warning(s)${NC}"
+    else
+        echo -e "${GREEN}Manifest looks good!${NC}"
+    fi
+}
+
+# Main sync function
+sync_manifest() {
+    local generate=false
+    local clean=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --generate|-g)
+                generate=true
+                shift
+                ;;
+            --clean|-c)
+                clean=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    echo -e "${BLUE}🧬 Darwin - Manifest Sync${NC}"
+    echo ""
+
+    # Check manifest exists
+    if [ ! -f "$MANIFEST_FILE" ]; then
+        echo -e "${RED}Error: manifest.json not found${NC}"
+        echo "Run 'darwin init' first or check your darwin.json config"
+        exit 1
+    fi
+
+    # Find test file
+    if [ -z "$TEST_FILE" ]; then
+        TEST_FILE=$(find_test_file)
+    fi
+
+    if [ -z "$TEST_FILE" ] || [ ! -f "$TEST_FILE" ]; then
+        echo -e "${YELLOW}Warning: ScreenshotTests.swift not found${NC}"
+        echo "Searched in: $PROJECT_DIR"
+        echo ""
+        if [ "$generate" = true ]; then
+            echo "Will output test stubs to stdout. Redirect to your test file:"
+            echo "  darwin manifest sync --generate >> YourUITests/ScreenshotTests.swift"
+            echo ""
+        fi
+        TEST_FILE=""
+    else
+        echo "Manifest: $MANIFEST_FILE"
+        echo "Tests:    $TEST_FILE"
+        echo ""
+    fi
+
+    # Get screens from manifest
+    local manifest_tests=()
+    local manifest_data=()
+    while IFS='|' read -r id name test sources; do
+        if [ -n "$test" ]; then
+            manifest_tests+=("$test")
+            manifest_data+=("$id|$name|$test|$sources")
+        fi
+    done < <(get_manifest_screens)
+
+    # Get existing tests
+    local existing_tests=()
+    if [ -n "$TEST_FILE" ]; then
+        while read -r test; do
+            existing_tests+=("$test")
+        done < <(get_existing_tests)
+    fi
+
+    # Find missing tests (in manifest but not in test file)
+    local missing=()
+    local missing_data=()
+    for i in "${!manifest_tests[@]}"; do
+        local test="${manifest_tests[$i]}"
+        local found=false
+        for existing in "${existing_tests[@]}"; do
+            if [ "$test" = "$existing" ]; then
+                found=true
+                break
+            fi
+        done
+        if [ "$found" = false ]; then
+            missing+=("$test")
+            missing_data+=("${manifest_data[$i]}")
+        fi
+    done
+
+    # Find orphan tests (in test file but not in manifest)
+    local orphans=()
+    for existing in "${existing_tests[@]}"; do
+        local found=false
+        for test in "${manifest_tests[@]}"; do
+            if [ "$test" = "$existing" ]; then
+                found=true
+                break
+            fi
+        done
+        if [ "$found" = false ]; then
+            orphans+=("$existing")
+        fi
+    done
+
+    # Report status
+    local total_manifest=${#manifest_tests[@]}
+    local total_existing=${#existing_tests[@]}
+    local total_missing=${#missing[@]}
+    local total_orphans=${#orphans[@]}
+    local in_sync=$((total_manifest - total_missing))
+
+    echo -e "${CYAN}Status:${NC}"
+    echo "  Manifest screens with tests: $total_manifest"
+    echo "  Existing test methods:       $total_existing"
+    echo "  In sync:                     $in_sync"
+
+    if [ $total_missing -gt 0 ]; then
+        echo -e "  ${YELLOW}Missing tests:                 $total_missing${NC}"
+    fi
+
+    if [ $total_orphans -gt 0 ]; then
+        echo -e "  ${DIM}Orphan tests:                  $total_orphans${NC}"
+    fi
+
+    echo ""
+
+    # Show missing tests
+    if [ $total_missing -gt 0 ]; then
+        echo -e "${YELLOW}Missing Tests:${NC}"
+        for i in "${!missing[@]}"; do
+            IFS='|' read -r id name test sources <<< "${missing_data[$i]}"
+            echo -e "  ${YELLOW}•${NC} $test ${DIM}($name)${NC}"
+        done
+        echo ""
+
+        if [ "$generate" = true ]; then
+            echo -e "${GREEN}=== Generated Test Stubs ===${NC}"
+            echo ""
+            echo "// MARK: - Auto-generated Test Stubs"
+            echo "// Generated by: darwin manifest sync --generate"
+            echo "// Date: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "//"
+            echo "// Add these to your ScreenshotTests.swift and implement the navigation logic."
+
+            for i in "${!missing[@]}"; do
+                IFS='|' read -r id name test sources <<< "${missing_data[$i]}"
+                generate_test_stub "$id" "$name" "$test" "$sources"
+            done
+
+            echo ""
+            echo -e "${GREEN}=== End Generated Stubs ===${NC}"
+            echo ""
+            echo -e "${CYAN}Next steps:${NC}"
+            echo "  1. Copy the stubs above into your ScreenshotTests.swift"
+            echo "  2. Implement the navigation logic for each test"
+            echo "  3. Run: darwin capture --all"
+        else
+            echo -e "${CYAN}To generate test stubs:${NC}"
+            echo "  darwin manifest sync --generate"
+        fi
+    else
+        echo -e "${GREEN}✓ All manifest screens have tests${NC}"
+    fi
+
+    # Show orphan tests
+    if [ $total_orphans -gt 0 ] && [ "$clean" = true ]; then
+        echo ""
+        echo -e "${DIM}Orphan Tests (in tests but not in manifest):${NC}"
+        for orphan in "${orphans[@]}"; do
+            echo -e "  ${DIM}• $orphan${NC}"
+        done
+        echo ""
+        echo -e "${DIM}These tests may be outdated or the screen was removed from manifest.${NC}"
+    fi
+
+    # Summary
+    if [ $total_missing -eq 0 ] && [ $total_orphans -eq 0 ]; then
+        echo ""
+        echo -e "${GREEN}🧬 Manifest and tests are fully in sync!${NC}"
+    fi
+}
+
+# Parse global options
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --test-file)
+            TEST_FILE="$2"
+            shift 2
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        sync)
+            shift
+            sync_manifest "$@"
+            exit 0
+            ;;
+        validate)
+            shift
+            validate_manifest
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Unknown command: $1${NC}"
+            echo "Run 'darwin manifest --help' for usage"
+            exit 1
+            ;;
+    esac
+done
+
+# No command specified
+show_help

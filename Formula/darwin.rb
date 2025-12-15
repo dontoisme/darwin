@@ -22,6 +22,7 @@ class Darwin < Formula
     bin.install "bin/darwin-status"
     bin.install "bin/darwin-hook"
     bin.install "bin/darwin-map"
+    bin.install "bin/darwin-manifest"
 
     # Install lib
     (libexec/"lib").install Dir["lib/*"]
@@ -35,6 +36,7 @@ class Darwin < Formula
     inreplace bin/"darwin-viewer", 'LIB_DIR="$SCRIPT_DIR/../lib"', "LIB_DIR=\"#{libexec}/lib\""
     inreplace bin/"darwin-status", 'LIB_DIR="$SCRIPT_DIR/../lib"', "LIB_DIR=\"#{libexec}/lib\""
     inreplace bin/"darwin-hook", 'LIB_DIR="$SCRIPT_DIR/../lib"', "LIB_DIR=\"#{libexec}/lib\""
+    inreplace bin/"darwin-manifest", 'LIB_DIR="$SCRIPT_DIR/../lib"', "LIB_DIR=\"#{libexec}/lib\""
     inreplace bin/"darwin-init", 'TEMPLATES_DIR="$SCRIPT_DIR/../templates"', "TEMPLATES_DIR=\"#{share}/darwin/templates\""
   end
 
