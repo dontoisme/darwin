@@ -1,63 +1,136 @@
 {
   "version": "1.1",
+  "description": "DinoCodex - Dinosaur Encyclopedia Demo App",
   "screens": {
-    "01-library-empty": {
-      "name": "Library (Empty)",
-      "test": "test01_LibraryEmpty",
-      "sources": ["Sources/Library/LibraryView.swift"],
-      "flows_to": ["02-library-with-books"]
+    "01-discover-home": {
+      "name": "Discover Home",
+      "description": "Featured dinosaurs, search bar, and era quick filters",
+      "test": "testScreenshot_01_DiscoverHome",
+      "sources": ["DinoCodex/Views/Discover/DiscoverHomeView.swift"],
+      "flows_to": ["02-discover-search", "03-discover-filter", "05-species-detail"]
     },
-    "02-library-with-books": {
-      "name": "Library (With Books)",
-      "test": "test02_LibraryWithBooks",
-      "sources": ["Sources/Library/LibraryView.swift", "Sources/Library/BookRowView.swift"],
-      "flows_to": ["05-library-miniplayer", "09-player-main", "14-profile-not-logged-in", "21-settings-main"]
+    "02-discover-search": {
+      "name": "Discover Search",
+      "description": "Search results grid with active filters",
+      "test": "testScreenshot_02_DiscoverSearch",
+      "sources": ["DinoCodex/Views/Discover/DiscoverSearchView.swift"],
+      "flows_to": ["05-species-detail", "03-discover-filter"]
     },
-    "05-library-miniplayer": {
-      "name": "Library (Mini Player)",
-      "test": "test05_LibraryMiniPlayer",
-      "sources": ["Sources/Player/MiniPlayerView.swift"],
-      "flows_to": ["09-player-main"]
+    "03-discover-filter": {
+      "name": "Discover Filter",
+      "description": "Filter sheet for era, diet, size, and region",
+      "test": "testScreenshot_03_DiscoverFilter",
+      "sources": ["DinoCodex/Views/Discover/DiscoverFilterView.swift"],
+      "flows_to": ["02-discover-search"]
     },
-    "09-player-main": {
-      "name": "Player Main",
-      "test": "test09_PlayerMain",
-      "sources": ["Sources/Player/PlayerView.swift"],
-      "flows_to": ["02-library-with-books"]
+    "04-species-list": {
+      "name": "Species List",
+      "description": "Alphabetical species list with thumbnails",
+      "test": "testScreenshot_04_SpeciesList",
+      "sources": ["DinoCodex/Views/Species/SpeciesListView.swift"],
+      "flows_to": ["05-species-detail"]
     },
-    "14-profile-not-logged-in": {
-      "name": "Profile",
-      "test": "test14_Profile",
-      "sources": ["Sources/Profile/ProfileView.swift"],
-      "flows_to": ["02-library-with-books"]
+    "05-species-detail": {
+      "name": "Species Detail",
+      "description": "Full dinosaur profile with image, stats, and description",
+      "test": "testScreenshot_05_SpeciesDetail",
+      "sources": ["DinoCodex/Views/Species/SpeciesDetailView.swift"],
+      "flows_to": ["06-species-dna", "07-species-compare"]
     },
-    "21-settings-main": {
-      "name": "Settings",
-      "test": "test21_Settings",
-      "sources": ["Sources/Settings/SettingsView.swift"],
-      "flows_to": ["02-library-with-books"]
+    "06-species-dna": {
+      "name": "Species DNA",
+      "description": "DNA sequence visualization with helix animation",
+      "test": "testScreenshot_06_SpeciesDNA",
+      "sources": ["DinoCodex/Views/Species/SpeciesDNAView.swift"],
+      "flows_to": ["05-species-detail"]
+    },
+    "07-species-compare": {
+      "name": "Species Compare",
+      "description": "Side-by-side comparison of two species",
+      "test": "testScreenshot_07_SpeciesCompare",
+      "sources": ["DinoCodex/Views/Species/SpeciesCompareView.swift"],
+      "flows_to": ["05-species-detail"]
+    },
+    "08-timeline-eras": {
+      "name": "Timeline Eras",
+      "description": "Geological timeline from Triassic to Cretaceous",
+      "test": "testScreenshot_08_TimelineEras",
+      "sources": ["DinoCodex/Views/Timeline/TimelineErasView.swift"],
+      "flows_to": ["09-timeline-era-detail"]
+    },
+    "09-timeline-era-detail": {
+      "name": "Timeline Era Detail",
+      "description": "Era detail with species from that period",
+      "test": "testScreenshot_09_TimelineEraDetail",
+      "sources": ["DinoCodex/Views/Timeline/TimelineEraDetailView.swift"],
+      "flows_to": ["05-species-detail"]
+    },
+    "10-map-fossils": {
+      "name": "Map Fossils",
+      "description": "World map with fossil discovery pins",
+      "test": "testScreenshot_10_MapFossils",
+      "sources": ["DinoCodex/Views/Map/MapFossilsView.swift"],
+      "flows_to": ["11-map-fossil-detail"]
+    },
+    "11-map-fossil-detail": {
+      "name": "Map Fossil Detail",
+      "description": "Fossil site detail sheet",
+      "test": "testScreenshot_11_MapFossilDetail",
+      "sources": ["DinoCodex/Views/Map/MapFossilDetailView.swift"],
+      "flows_to": ["05-species-detail"]
+    },
+    "12-collection-favorites": {
+      "name": "Collection Favorites",
+      "description": "User's saved dinosaurs",
+      "test": "testScreenshot_12_CollectionFavorites",
+      "sources": ["DinoCodex/Views/Collection/CollectionFavoritesView.swift"],
+      "flows_to": ["05-species-detail"]
+    },
+    "13-collection-badges": {
+      "name": "Collection Badges",
+      "description": "Achievement badges for discoveries",
+      "test": "testScreenshot_13_CollectionBadges",
+      "sources": ["DinoCodex/Views/Collection/CollectionBadgesView.swift"],
+      "flows_to": []
+    },
+    "14-settings-main": {
+      "name": "Settings Main",
+      "description": "App settings, about, and credits",
+      "test": "testScreenshot_14_SettingsMain",
+      "sources": ["DinoCodex/Views/Settings/SettingsMainView.swift"],
+      "flows_to": []
     }
   },
   "groups": {
-    "library": {
-      "name": "Library",
-      "color": "#58a6ff",
-      "screens": ["01-library-empty", "02-library-with-books", "05-library-miniplayer"]
+    "discover": {
+      "name": "Discover",
+      "color": "#4CAF50",
+      "screens": ["01-discover-home", "02-discover-search", "03-discover-filter"]
     },
-    "player": {
-      "name": "Player",
-      "color": "#3fb950",
-      "screens": ["09-player-main"]
+    "species": {
+      "name": "Species",
+      "color": "#2196F3",
+      "screens": ["04-species-list", "05-species-detail", "06-species-dna", "07-species-compare"]
     },
-    "profile": {
-      "name": "Profile",
-      "color": "#a371f7",
-      "screens": ["14-profile-not-logged-in"]
+    "timeline": {
+      "name": "Timeline",
+      "color": "#FF9800",
+      "screens": ["08-timeline-eras", "09-timeline-era-detail"]
+    },
+    "map": {
+      "name": "Map",
+      "color": "#9C27B0",
+      "screens": ["10-map-fossils", "11-map-fossil-detail"]
+    },
+    "collection": {
+      "name": "Collection",
+      "color": "#F44336",
+      "screens": ["12-collection-favorites", "13-collection-badges"]
     },
     "settings": {
       "name": "Settings",
-      "color": "#f0883e",
-      "screens": ["21-settings-main"]
+      "color": "#607D8B",
+      "screens": ["14-settings-main"]
     }
   }
 }

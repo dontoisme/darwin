@@ -628,6 +628,7 @@
         <div class="mode-tabs">
             <button class="mode-tab" data-mode="single">Single</button>
             <button class="mode-tab" data-mode="compare">Compare</button>
+            <button class="mode-tab" data-mode="timelapse">Timelapse</button>
             <button class="mode-tab active" data-mode="map">Map</button>
         </div>
         <div class="map-toolbar" id="mapToolbar">
@@ -687,8 +688,8 @@
 
     <script>
         // Injected data
-        const MANIFEST = {"version":"1.1","screens":{"01-library-empty":{"name":"Library (Empty)","test":"test01_LibraryEmpty","sources":["Sources/Library/LibraryView.swift"],"flows_to":["02-library-with-books"]},"02-library-with-books":{"name":"Library (With Books)","test":"test02_LibraryWithBooks","sources":["Sources/Library/LibraryView.swift","Sources/Library/BookRowView.swift"],"flows_to":["05-library-miniplayer","09-player-main","14-profile-not-logged-in","21-settings-main"]},"05-library-miniplayer":{"name":"Library (Mini Player)","test":"test05_LibraryMiniPlayer","sources":["Sources/Player/MiniPlayerView.swift"],"flows_to":["09-player-main"]},"09-player-main":{"name":"Player Main","test":"test09_PlayerMain","sources":["Sources/Player/PlayerView.swift"],"flows_to":["02-library-with-books"]},"14-profile-not-logged-in":{"name":"Profile","test":"test14_Profile","sources":["Sources/Profile/ProfileView.swift"],"flows_to":["02-library-with-books"]},"21-settings-main":{"name":"Settings","test":"test21_Settings","sources":["Sources/Settings/SettingsView.swift"],"flows_to":["02-library-with-books"]}},"groups":{"library":{"name":"Library","color":"#58a6ff","screens":["01-library-empty","02-library-with-books","05-library-miniplayer"]},"player":{"name":"Player","color":"#3fb950","screens":["09-player-main"]},"profile":{"name":"Profile","color":"#a371f7","screens":["14-profile-not-logged-in"]},"settings":{"name":"Settings","color":"#f0883e","screens":["21-settings-main"]}}};
-        const INDEX = {"version":"1.0","captures":[{"id":"baseline","commit":"abc1234","commitFull":"abc1234567890","branch":"main","timestamp":"2025-12-15T12:00:00Z","parent":null,"screenCount":6,"mode":"baseline"}]};
+        const MANIFEST = {"version":"1.1","description":"DinoCodex - Dinosaur Encyclopedia Demo App","screens":{"01-discover-home":{"name":"Discover Home","description":"Featured dinosaurs, search bar, and era quick filters","test":"testScreenshot_01_DiscoverHome","sources":["DinoCodex/Views/Discover/DiscoverHomeView.swift"],"flows_to":["02-discover-search","03-discover-filter","05-species-detail"]},"02-discover-search":{"name":"Discover Search","description":"Search results grid with active filters","test":"testScreenshot_02_DiscoverSearch","sources":["DinoCodex/Views/Discover/DiscoverSearchView.swift"],"flows_to":["05-species-detail","03-discover-filter"]},"03-discover-filter":{"name":"Discover Filter","description":"Filter sheet for era, diet, size, and region","test":"testScreenshot_03_DiscoverFilter","sources":["DinoCodex/Views/Discover/DiscoverFilterView.swift"],"flows_to":["02-discover-search"]},"04-species-list":{"name":"Species List","description":"Alphabetical species list with thumbnails","test":"testScreenshot_04_SpeciesList","sources":["DinoCodex/Views/Species/SpeciesListView.swift"],"flows_to":["05-species-detail"]},"05-species-detail":{"name":"Species Detail","description":"Full dinosaur profile with image, stats, and description","test":"testScreenshot_05_SpeciesDetail","sources":["DinoCodex/Views/Species/SpeciesDetailView.swift"],"flows_to":["06-species-dna","07-species-compare"]},"06-species-dna":{"name":"Species DNA","description":"DNA sequence visualization with helix animation","test":"testScreenshot_06_SpeciesDNA","sources":["DinoCodex/Views/Species/SpeciesDNAView.swift"],"flows_to":["05-species-detail"]},"07-species-compare":{"name":"Species Compare","description":"Side-by-side comparison of two species","test":"testScreenshot_07_SpeciesCompare","sources":["DinoCodex/Views/Species/SpeciesCompareView.swift"],"flows_to":["05-species-detail"]},"08-timeline-eras":{"name":"Timeline Eras","description":"Geological timeline from Triassic to Cretaceous","test":"testScreenshot_08_TimelineEras","sources":["DinoCodex/Views/Timeline/TimelineErasView.swift"],"flows_to":["09-timeline-era-detail"]},"09-timeline-era-detail":{"name":"Timeline Era Detail","description":"Era detail with species from that period","test":"testScreenshot_09_TimelineEraDetail","sources":["DinoCodex/Views/Timeline/TimelineEraDetailView.swift"],"flows_to":["05-species-detail"]},"10-map-fossils":{"name":"Map Fossils","description":"World map with fossil discovery pins","test":"testScreenshot_10_MapFossils","sources":["DinoCodex/Views/Map/MapFossilsView.swift"],"flows_to":["11-map-fossil-detail"]},"11-map-fossil-detail":{"name":"Map Fossil Detail","description":"Fossil site detail sheet","test":"testScreenshot_11_MapFossilDetail","sources":["DinoCodex/Views/Map/MapFossilDetailView.swift"],"flows_to":["05-species-detail"]},"12-collection-favorites":{"name":"Collection Favorites","description":"User's saved dinosaurs","test":"testScreenshot_12_CollectionFavorites","sources":["DinoCodex/Views/Collection/CollectionFavoritesView.swift"],"flows_to":["05-species-detail"]},"13-collection-badges":{"name":"Collection Badges","description":"Achievement badges for discoveries","test":"testScreenshot_13_CollectionBadges","sources":["DinoCodex/Views/Collection/CollectionBadgesView.swift"],"flows_to":[]},"14-settings-main":{"name":"Settings Main","description":"App settings, about, and credits","test":"testScreenshot_14_SettingsMain","sources":["DinoCodex/Views/Settings/SettingsMainView.swift"],"flows_to":[]}},"groups":{"discover":{"name":"Discover","color":"#4CAF50","screens":["01-discover-home","02-discover-search","03-discover-filter"]},"species":{"name":"Species","color":"#2196F3","screens":["04-species-list","05-species-detail","06-species-dna","07-species-compare"]},"timeline":{"name":"Timeline","color":"#FF9800","screens":["08-timeline-eras","09-timeline-era-detail"]},"map":{"name":"Map","color":"#9C27B0","screens":["10-map-fossils","11-map-fossil-detail"]},"collection":{"name":"Collection","color":"#F44336","screens":["12-collection-favorites","13-collection-badges"]},"settings":{"name":"Settings","color":"#607D8B","screens":["14-settings-main"]}}};
+        const INDEX = {"version":"1.0","captures":[{"id":"baseline","commit":"b1e303a","commitFull":"b1e303a40bb7433d809ee9ae98a5b49728b23f25","branch":"main","timestamp":"2025-12-15T18:32:11Z","mode":"baseline","parent":null,"capturedScreens":[],"screenCount":0},{"id":"1cc204d","commit":"1cc204d","commitFull":"1cc204db961222d55b92f6e8f34d2417c7d8201a","branch":"main","timestamp":"2025-12-15T18:49:24Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"b2b1f86","commit":"b2b1f86","commitFull":"b2b1f8634c31c52c41cb4cf52ebf1a8d4e4728fa","branch":"main","timestamp":"2025-12-15T18:53:48Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"50d8599","commit":"50d8599","commitFull":"50d85998e5f4633733e5db721a8cc4407c881b5f","branch":"main","timestamp":"2025-12-15T18:56:28Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"17eb4cc","commit":"17eb4cc","commitFull":"17eb4cca09c8fb183e349fb6b1159f690151d7c4","branch":"main","timestamp":"2025-12-15T18:59:01Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"27d3a0a","commit":"27d3a0a","commitFull":"27d3a0a78b99576b50a3efe2465cded95fabb6ae","branch":"main","timestamp":"2025-12-15T19:01:36Z","mode":"smart","parent":"baseline","screenCount":0},{"id":"6d7d54b","commit":"6d7d54b","commitFull":"6d7d54bdf61e2de9e9a5437b5c638afbdc2b6760","branch":"main","timestamp":"2025-12-15T19:03:21Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"60fdf57","commit":"60fdf57","commitFull":"60fdf573aedb87956b38ac877f2038b753f84c0c","branch":"main","timestamp":"2025-12-15T19:06:33Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"83a9ace","commit":"83a9ace","commitFull":"83a9acebb40dd5c3bb0c59150543bf6d268416f2","branch":"main","timestamp":"2025-12-15T19:09:14Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"cb42201","commit":"cb42201","commitFull":"cb42201701c4d0cb758812feabe9ccc9a02ed0f4","branch":"main","timestamp":"2025-12-15T19:17:18Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"b402b76","commit":"b402b76","commitFull":"b402b76a3519fa0445ebdd02b6cb164cfb6f3345","branch":"main","timestamp":"2025-12-15T19:24:41Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"4239238","commit":"4239238","commitFull":"423923863511cf148a3246fd39b9c21eb0e3b17a","branch":"main","timestamp":"2025-12-15T19:28:35Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"3d9534d","commit":"3d9534d","commitFull":"3d9534d1d13e275616c2840ac864cd5b4d9b6e61","branch":"main","timestamp":"2025-12-15T19:31:40Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"9a49a49","commit":"9a49a49","commitFull":"9a49a496e36fd447dd450d911bab1a6e10aa5b3b","branch":"main","timestamp":"2025-12-15T19:34:44Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"2a4ee68","commit":"2a4ee68","commitFull":"2a4ee68d51e9955f7fa0d80c046fed1768c0482a","branch":"main","timestamp":"2025-12-15T19:38:14Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"3c262e0","commit":"3c262e0","commitFull":"3c262e026663ec6d6f61f1a06eac5f4642b71968","branch":"main","timestamp":"2025-12-15T19:42:50Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"22821cd","commit":"22821cd","commitFull":"22821cd00bf2611c199af271413103e830f04804","branch":"main","timestamp":"2025-12-15T19:45:46Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"5472388","commit":"5472388","commitFull":"547238824d928a0229b43c1ea7f21c5f49b1ef97","branch":"main","timestamp":"2025-12-15T19:51:56Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"6d7ec53","commit":"6d7ec53","commitFull":"6d7ec537f715f7329f2d7b683fc44180e8df5c4c","branch":"main","timestamp":"2025-12-15T19:57:52Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"3825bb3","commit":"3825bb3","commitFull":"3825bb35420df7d4683263029d2b1cf6d571e070","branch":"main","timestamp":"2025-12-15T20:11:28Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"d74a17d","commit":"d74a17d","commitFull":"d74a17dc7374cf5b43e0f0ab55a24e08a0f1b876","branch":"main","timestamp":"2025-12-15T20:15:28Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"6759a90","commit":"6759a90","commitFull":"6759a909066f8d791349f8b03822d4d7c0c05da8","branch":"main","timestamp":"2025-12-15T20:18:24Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"8ec51d2","commit":"8ec51d2","commitFull":"8ec51d2313308bba269fa0f06f90b73aa4e89d4d","branch":"main","timestamp":"2025-12-15T20:22:20Z","mode":"smart","screenCount":14,"parent":"baseline"}]};
         const CAPTURES_DIR = "captures";
 
         // State
@@ -814,6 +815,9 @@
                 case 'compare':
                     renderCompareView(main);
                     break;
+                case 'timelapse':
+                    renderTimelapseView(main);
+                    break;
                 case 'map':
                     populateGroupFilters();
                     renderMapView(main);
@@ -826,33 +830,24 @@
             const groups = MANIFEST.groups || {};
 
             container.innerHTML = Object.entries(groups).map(([id, group]) => `
-                <button class="filter-btn" data-group="${id}" onclick="toggleGroupFilter('${id}')" style="--group-color: ${group.color}">
+                <button class="filter-btn active" data-group="${id}" onclick="toggleGroupFilter('${id}')" style="--group-color: ${group.color}">
                     <span class="dot" style="background: ${group.color}"></span>${group.name}
                 </button>
             `).join('');
 
-            // Initialize with no groups selected (empty = show all)
-            activeGroups = new Set();
+            // Initialize all groups as active
+            activeGroups = new Set(Object.keys(groups));
         }
 
         function toggleGroupFilter(groupId) {
-            // New behavior: clicking a group makes it the only selected group
-            // Clicking the selected group deselects it (back to showing all)
-            if (activeGroups.size === 1 && activeGroups.has(groupId)) {
-                // Deselect the only selected group
-                activeGroups.clear();
+            const btn = document.querySelector(`.filter-btn[data-group="${groupId}"]`);
+            if (activeGroups.has(groupId)) {
+                activeGroups.delete(groupId);
+                btn.classList.remove('active');
             } else {
-                // Select only this group
-                activeGroups.clear();
                 activeGroups.add(groupId);
+                btn.classList.add('active');
             }
-
-            // Update button states
-            document.querySelectorAll('.filter-btn[data-group]').forEach(button => {
-                const btnGroupId = button.dataset.group;
-                button.classList.toggle('active', activeGroups.has(btnGroupId));
-            });
-
             applyMapFilters();
         }
 
@@ -1439,25 +1434,8 @@
 
             container.addEventListener('wheel', (e) => {
                 e.preventDefault();
-
-                // Get mouse position relative to container
-                const rect = container.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left;
-                const mouseY = e.clientY - rect.top;
-
-                // Calculate point in canvas space before zoom
-                const pointX = (mouseX - mapTranslateX) / mapScale;
-                const pointY = (mouseY - mapTranslateY) / mapScale;
-
-                // Update scale
-                const oldScale = mapScale;
                 mapScale *= e.deltaY > 0 ? 0.9 : 1.1;
                 mapScale = Math.max(0.1, Math.min(2, mapScale));
-
-                // Adjust translation to keep the point under the mouse
-                mapTranslateX = mouseX - pointX * mapScale;
-                mapTranslateY = mouseY - pointY * mapScale;
-
                 updateMapTransform();
             });
         }

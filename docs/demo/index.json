@@ -3,13 +3,234 @@
   "captures": [
     {
       "id": "baseline",
-      "commit": "abc1234",
-      "commitFull": "abc1234567890",
+      "commit": "b1e303a",
+      "commitFull": "b1e303a40bb7433d809ee9ae98a5b49728b23f25",
       "branch": "main",
-      "timestamp": "2025-12-15T12:00:00Z",
+      "timestamp": "2025-12-15T18:32:11Z",
+      "mode": "baseline",
       "parent": null,
-      "screenCount": 6,
-      "mode": "baseline"
+      "capturedScreens": [],
+      "screenCount": 0
+    },
+    {
+      "id": "1cc204d",
+      "commit": "1cc204d",
+      "commitFull": "1cc204db961222d55b92f6e8f34d2417c7d8201a",
+      "branch": "main",
+      "timestamp": "2025-12-15T18:49:24Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "b2b1f86",
+      "commit": "b2b1f86",
+      "commitFull": "b2b1f8634c31c52c41cb4cf52ebf1a8d4e4728fa",
+      "branch": "main",
+      "timestamp": "2025-12-15T18:53:48Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "50d8599",
+      "commit": "50d8599",
+      "commitFull": "50d85998e5f4633733e5db721a8cc4407c881b5f",
+      "branch": "main",
+      "timestamp": "2025-12-15T18:56:28Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "17eb4cc",
+      "commit": "17eb4cc",
+      "commitFull": "17eb4cca09c8fb183e349fb6b1159f690151d7c4",
+      "branch": "main",
+      "timestamp": "2025-12-15T18:59:01Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "27d3a0a",
+      "commit": "27d3a0a",
+      "commitFull": "27d3a0a78b99576b50a3efe2465cded95fabb6ae",
+      "branch": "main",
+      "timestamp": "2025-12-15T19:01:36Z",
+      "mode": "smart",
+      "parent": "baseline",
+      "screenCount": 0
+    },
+    {
+      "id": "6d7d54b",
+      "commit": "6d7d54b",
+      "commitFull": "6d7d54bdf61e2de9e9a5437b5c638afbdc2b6760",
+      "branch": "main",
+      "timestamp": "2025-12-15T19:03:21Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "60fdf57",
+      "commit": "60fdf57",
+      "commitFull": "60fdf573aedb87956b38ac877f2038b753f84c0c",
+      "branch": "main",
+      "timestamp": "2025-12-15T19:06:33Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "83a9ace",
+      "commit": "83a9ace",
+      "commitFull": "83a9acebb40dd5c3bb0c59150543bf6d268416f2",
+      "branch": "main",
+      "timestamp": "2025-12-15T19:09:14Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "cb42201",
+      "commit": "cb42201",
+      "commitFull": "cb42201701c4d0cb758812feabe9ccc9a02ed0f4",
+      "branch": "main",
+      "timestamp": "2025-12-15T19:17:18Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "b402b76",
+      "commit": "b402b76",
+      "commitFull": "b402b76a3519fa0445ebdd02b6cb164cfb6f3345",
+      "branch": "main",
+      "timestamp": "2025-12-15T19:24:41Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "4239238",
+      "commit": "4239238",
+      "commitFull": "423923863511cf148a3246fd39b9c21eb0e3b17a",
+      "branch": "main",
+      "timestamp": "2025-12-15T19:28:35Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "3d9534d",
+      "commit": "3d9534d",
+      "commitFull": "3d9534d1d13e275616c2840ac864cd5b4d9b6e61",
+      "branch": "main",
+      "timestamp": "2025-12-15T19:31:40Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "9a49a49",
+      "commit": "9a49a49",
+      "commitFull": "9a49a496e36fd447dd450d911bab1a6e10aa5b3b",
+      "branch": "main",
+      "timestamp": "2025-12-15T19:34:44Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "2a4ee68",
+      "commit": "2a4ee68",
+      "commitFull": "2a4ee68d51e9955f7fa0d80c046fed1768c0482a",
+      "branch": "main",
+      "timestamp": "2025-12-15T19:38:14Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "3c262e0",
+      "commit": "3c262e0",
+      "commitFull": "3c262e026663ec6d6f61f1a06eac5f4642b71968",
+      "branch": "main",
+      "timestamp": "2025-12-15T19:42:50Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "22821cd",
+      "commit": "22821cd",
+      "commitFull": "22821cd00bf2611c199af271413103e830f04804",
+      "branch": "main",
+      "timestamp": "2025-12-15T19:45:46Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "5472388",
+      "commit": "5472388",
+      "commitFull": "547238824d928a0229b43c1ea7f21c5f49b1ef97",
+      "branch": "main",
+      "timestamp": "2025-12-15T19:51:56Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "6d7ec53",
+      "commit": "6d7ec53",
+      "commitFull": "6d7ec537f715f7329f2d7b683fc44180e8df5c4c",
+      "branch": "main",
+      "timestamp": "2025-12-15T19:57:52Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "3825bb3",
+      "commit": "3825bb3",
+      "commitFull": "3825bb35420df7d4683263029d2b1cf6d571e070",
+      "branch": "main",
+      "timestamp": "2025-12-15T20:11:28Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "d74a17d",
+      "commit": "d74a17d",
+      "commitFull": "d74a17dc7374cf5b43e0f0ab55a24e08a0f1b876",
+      "branch": "main",
+      "timestamp": "2025-12-15T20:15:28Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "6759a90",
+      "commit": "6759a90",
+      "commitFull": "6759a909066f8d791349f8b03822d4d7c0c05da8",
+      "branch": "main",
+      "timestamp": "2025-12-15T20:18:24Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
+    },
+    {
+      "id": "8ec51d2",
+      "commit": "8ec51d2",
+      "commitFull": "8ec51d2313308bba269fa0f06f90b73aa4e89d4d",
+      "branch": "main",
+      "timestamp": "2025-12-15T20:22:20Z",
+      "mode": "smart",
+      "screenCount": 14,
+      "parent": "baseline"
     }
   ]
 }
