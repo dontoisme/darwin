@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darwin - Visual Regression Testing for iOS</title>
+    <meta name="description" content="Git-aware visual regression testing and development timelapse for iOS apps. Watch your app evolve commit-by-commit.">
+    <meta name="keywords" content="iOS, visual regression testing, screenshot testing, XCUITest, Swift, Xcode, git, timelapse">
+    <meta name="author" content="Don Hogan">
+
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Darwin - Visual Regression Testing for iOS">
+    <meta property="og:description" content="Git-aware visual regression testing and development timelapse for iOS apps.">
+    <meta property="og:url" content="https://dontoisme.github.io/darwin">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Darwin - Visual Regression Testing for iOS">
+    <meta name="twitter:description" content="Git-aware visual regression testing and development timelapse for iOS apps.">
+
+    <style>
+        :root {
+            --bg: #0d1117;
+            --bg-secondary: #161b22;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-purple: #a371f7;
+            --border: #30363d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Hero */
+        .hero {
+            padding: 80px 0 60px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tagline {
+            font-size: 24px;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .btn-primary:hover {
+            background: #79b8ff;
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--text-muted);
+        }
+
+        /* Install */
+        .install {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 40px 0;
+        }
+
+        .install-label {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .install-code {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .install-code code {
+            flex: 1;
+            background: var(--bg);
+            padding: 16px 20px;
+            border-radius: 8px;
+            font-family: 'SF Mono', Menlo, monospace;
+            font-size: 15px;
+            color: var(--accent-green);
+            overflow-x: auto;
+        }
+
+        .copy-btn {
+            background: var(--border);
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: var(--text);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: var(--text-muted);
+        }
+
+        /* Features */
+        .features {
+            padding: 60px 0;
+        }
+
+        .features h2 {
+            font-size: 32px;
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+        }
+
+        .feature {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .feature h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .feature p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* How it works */
+        .how-it-works {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .how-it-works h2 {
+            font-size: 32px;
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .step {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .step-number {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            background: var(--accent);
+            color: var(--bg);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .step-content h3 {
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+
+        .step-content p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* Code example */
+        .example {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .example h2 {
+            font-size: 32px;
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .code-block {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .code-header {
+            background: var(--border);
+            padding: 12px 20px;
+            font-size: 14px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .code-header::before {
+            content: '';
+            display: flex;
+            gap: 6px;
+        }
+
+        .code-block pre {
+            padding: 20px;
+            overflow-x: auto;
+            font-family: 'SF Mono', Menlo, monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .code-block .comment { color: var(--text-muted); }
+        .code-block .command { color: var(--accent-green); }
+        .code-block .flag { color: var(--accent-purple); }
+
+        /* Use cases */
+        .use-cases {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .use-cases h2 {
+            font-size: 32px;
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .use-case-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .use-case {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            font-size: 14px;
+        }
+
+        .use-case strong {
+            color: var(--accent);
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 40px 0;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            h1 { font-size: 36px; }
+            .tagline { font-size: 18px; }
+            .hero { padding: 60px 0 40px; }
+            .logo { font-size: 48px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <section class="hero">
+            <div class="logo">🧬</div>
+            <h1>Darwin</h1>
+            <p class="tagline">Watch your iOS app evolve</p>
+            <p style="color: var(--text-muted); margin-bottom: 32px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                Git-aware visual regression testing and development timelapse for iOS.
+                Capture only what changed, diff at the pixel level, track your UI across commits.
+            </p>
+            <div class="cta-buttons">
+                <a href="https://github.com/dontoisme/darwin" class="btn btn-primary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                    View on GitHub
+                </a>
+                <a href="#install" class="btn btn-secondary">Quick Install</a>
+            </div>
+        </section>
+
+        <section class="install" id="install">
+            <div class="install-label">Install with Homebrew</div>
+            <div class="install-code">
+                <code>brew tap dontoisme/darwin && brew install darwin</code>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('brew tap dontoisme/darwin && brew install darwin')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                </button>
+            </div>
+        </section>
+
+        <section class="features">
+            <h2>Features</h2>
+            <div class="feature-grid">
+                <div class="feature">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Smart Capture</h3>
+                    <p>Only screenshot screens affected by your code changes. No wasted CI time on unchanged UI.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔍</div>
+                    <h3>Pixel-Level Diff</h3>
+                    <p>ImageMagick-powered comparison catches even subtle visual regressions with HTML reports.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📊</div>
+                    <h3>Git-Aware</h3>
+                    <p>Organized by commit. Track which source files affect which screens with manifest mapping.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <h3>CI-Ready</h3>
+                    <p>Works with any CI system. Generate diff reports for PR reviews automatically.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="how-it-works">
+            <h2>How It Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Manifest maps source to screens</h3>
+                        <p>Define which Swift files affect which UI screens in manifest.json</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Git diff detects changes</h3>
+                        <p>Darwin checks which files changed since your last capture</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>XCUITest captures affected screens</h3>
+                        <p>Only the screens that could have changed are re-captured</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>Visual diff shows what changed</h3>
+                        <p>HTML reports with before/after/diff side-by-side comparison</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="example">
+            <h2>Quick Start</h2>
+            <div class="code-block">
+                <div class="code-header">Terminal</div>
+                <pre><span class="comment"># Initialize in your iOS project</span>
+<span class="command">darwin init</span>
+
+<span class="comment"># Capture baseline screenshots</span>
+<span class="command">darwin capture</span> <span class="flag">--baseline</span>
+
+<span class="comment"># After making changes, smart capture</span>
+<span class="command">darwin capture</span> <span class="flag">--smart</span>
+
+<span class="comment"># Generate visual diff report</span>
+<span class="command">darwin diff</span> <span class="flag">--html</span>
+<span class="command">open</span> Screenshots/diff/report.html</pre>
+            </div>
+        </section>
+
+        <section class="use-cases">
+            <h2>Use Cases</h2>
+            <div class="use-case-grid">
+                <div class="use-case"><strong>Visual regression testing</strong> — Catch unintended UI changes before they ship</div>
+                <div class="use-case"><strong>Design review</strong> — Generate visual diffs for PR reviews</div>
+                <div class="use-case"><strong>AI-assisted development</strong> — Track changes made by AI coding assistants</div>
+                <div class="use-case"><strong>Documentation</strong> — Build a visual history of your app's evolution</div>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>MIT License · Created by <a href="https://github.com/dontoisme">Don Hogan</a></p>
+            <p style="margin-top: 8px;">
+                <a href="https://github.com/dontoisme/darwin">GitHub</a> ·
+                <a href="https://github.com/dontoisme/darwin/blob/main/docs/QUICKSTART.md">Docs</a> ·
+                <a href="https://github.com/dontoisme/darwin/issues">Issues</a>
+            </p>
+        </div>
+    </footer>
+</body>
+</html>
