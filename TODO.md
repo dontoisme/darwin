@@ -2,6 +2,13 @@
 
 ## Future Ideas
 
+### Manifest Auto-Update
+- [ ] `darwin manifest scan` - Detect new/changed source files and suggest updates
+- [ ] Parse Swift files for `accessibilityIdentifier` assignments
+- [ ] Scan XCUITest files for `func test*` methods
+- [ ] Build-time hook to detect manifest drift
+- [ ] `darwin manifest validate` - Check for missing sources or dead references
+
 ### GitHub Action
 - [ ] Create `dontoisme/darwin-action` for CI integration
 - [ ] macOS runner with iOS Simulator setup
