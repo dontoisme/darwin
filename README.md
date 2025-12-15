@@ -7,7 +7,7 @@ Darwin tracks UI changes across commits by intelligently capturing only screens 
 ## Features
 
 - **Smart capture** — Only screenshot screens affected by changed source files
-- **Visual timeline** — Interactive viewer with timelapse playback and app flow map
+- **Visual timeline** — Interactive viewer with timeline playback, app flow map, and group filtering
 - **Pixel-level diff** — ImageMagick-powered comparison with HTML reports
 - **Git-aware** — Organized by commit, tracks source file → screen mapping
 - **Git hooks** — Auto-capture or prompt after commits with Swift changes
@@ -46,17 +46,17 @@ darwin viewer
 | `darwin capture` | Smart capture (only changed screens) |
 | `darwin capture --baseline` | Capture all screens (first run) |
 | `darwin diff` | Compare screenshots between captures |
-| `darwin viewer` | Open interactive timeline viewer |
+| `darwin viewer` | Open interactive timeline viewer (auto-regenerates after capture) |
+| `darwin manifest sync` | Sync manifest with viewer (auto-runs after capture) |
 | `darwin status` | Show current state and pending changes |
 | `darwin hook install` | Install git hook for auto-capture |
 
 ### darwin viewer
 
-The unified viewer provides four modes:
+The unified viewer provides three modes:
 - **Single** — Browse any capture
 - **Compare** — Side-by-side diff between captures
-- **Timelapse** — Scrub through your timeline, see changes highlighted
-- **Map** — Visual app flow with screen connections
+- **Map** — Visual app flow with timeline playback, group filtering, and mouse-centered zoom
 
 ### darwin hook
 
@@ -74,7 +74,8 @@ darwin hook status           # Check if hook is installed
 2. **Git diff** detects which Swift files changed since last capture
 3. **Smart capture** runs only the XCUITests for affected screens
 4. **Timeline** tracks all captures with commit info
-5. **Viewer** lets you explore your app's visual evolution
+5. **Auto-sync** regenerates viewer with updated manifest after each capture
+6. **Viewer** lets you explore your app's visual evolution
 
 ## Configuration
 
