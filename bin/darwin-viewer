@@ -39,12 +39,19 @@ fi
 INDEX_FILE="$SCREENSHOT_DIR/index.json"
 OUTPUT_FILE="$SCREENSHOT_DIR/viewer.html"
 
+# Defaults
+GENERATE_ONLY=false
+
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --output|-o)
             OUTPUT_FILE="$2"
             shift 2
+            ;;
+        --generate-only)
+            GENERATE_ONLY=true
+            shift
             ;;
         --help|-h)
             echo "Usage: darwin viewer [OPTIONS]"
@@ -53,6 +60,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  --output, -o FILE   Output HTML file (default: Screenshots/viewer.html)"
+            echo "  --generate-only     Generate without opening browser"
             echo "  --help              Show this help"
             echo ""
             echo "Modes available in viewer:"
@@ -1928,6 +1936,11 @@ echo "  - Timelapse: Scrub through timeline"
 echo "  - Map:       App flow visualization"
 echo ""
 
+# Exit early if generate-only mode
+if [ "$GENERATE_ONLY" = true ]; then
+    exit 0
+fi
+
 # Count captures
 CAPTURE_COUNT=$(echo "$INDEX_JSON" | jq '.captures | length' 2>/dev/null || echo "0")
 
@@ -1946,6 +1959,7 @@ else
     echo "  Automate captures:"
     echo "    ${GREEN}darwin hook install${NC}           # Auto-capture on commit"
 fi
+
 echo ""
 echo "Opening viewer..."
 open "$OUTPUT_FILE"
