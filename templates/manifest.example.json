@@ -1,0 +1,56 @@
+{
+  "version": "1.0",
+  "description": "Darwin manifest - maps screens to source files for smart screenshot capture",
+
+  "screens": {
+    "01-home": {
+      "name": "Home",
+      "description": "Main home/landing screen",
+      "test": "testScreenshot_01_Home",
+      "sources": [
+        "Sources/Views/HomeView.swift",
+        "Sources/ViewModels/HomeViewModel.swift"
+      ]
+    },
+
+    "02-settings": {
+      "name": "Settings",
+      "description": "App settings screen",
+      "test": "testScreenshot_02_Settings",
+      "sources": [
+        "Sources/Views/SettingsView.swift"
+      ]
+    },
+
+    "03-profile": {
+      "name": "Profile",
+      "description": "User profile screen",
+      "test": "testScreenshot_03_Profile",
+      "sources": [
+        "Sources/Views/ProfileView.swift",
+        "Sources/ViewModels/ProfileViewModel.swift"
+      ]
+    },
+
+    "04-detail-empty": {
+      "name": "Detail (Empty State)",
+      "description": "Detail view with no content",
+      "test": "testScreenshot_04_DetailEmpty",
+      "sources": [
+        "Sources/Views/DetailView.swift"
+      ]
+    },
+
+    "05-detail-populated": {
+      "name": "Detail (With Content)",
+      "description": "Detail view with sample content",
+      "test": "testScreenshot_05_DetailPopulated",
+      "sources": [
+        "Sources/Views/DetailView.swift",
+        "Sources/ViewModels/DetailViewModel.swift"
+      ]
+    }
+  },
+
+  "_comment": "Screen IDs should be numbered (01-, 02-) for consistent ordering. The 'test' field must match the XCTest method name exactly. The 'sources' array lists Swift files that, when changed, trigger this screen to be recaptured."
+}
