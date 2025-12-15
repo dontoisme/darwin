@@ -61,6 +61,25 @@ fi
 CAPTURES_DIR="$CONFIG_OUTPUT_PATH/captures"
 INDEX_FILE="$CONFIG_OUTPUT_PATH/index.json"
 
+# Check manifest sync status (quick check, non-blocking)
+check_manifest_sync() {
+    if [ -f "$SCRIPT_DIR/darwin-manifest" ]; then
+        # Quick sync check - count missing tests
+        local test_file="$PROJECT_DIR/$CONFIG_TEST_TARGET/$CONFIG_TEST_CLASS.swift"
+        if [ -f "$test_file" ] && [ -f "$CONFIG_MANIFEST_PATH" ]; then
+            local manifest_tests=$(jq -r '.screens[].test // empty' "$CONFIG_MANIFEST_PATH" 2>/dev/null | sort)
+            local existing_tests=$(grep -oE 'func test[0-9]+_[a-zA-Z0-9_]+' "$test_file" 2>/dev/null | sed 's/func //' | sort)
+            local missing=$(comm -23 <(echo "$manifest_tests") <(echo "$existing_tests") | wc -l | tr -d ' ')
+            if [ "$missing" -gt 0 ]; then
+                echo -e "${YELLOW}⚠ Manifest has $missing screen(s) without tests${NC}"
+                echo -e "  Run: ${GREEN}darwin manifest sync --generate${NC}"
+                echo ""
+            fi
+        fi
+    fi
+}
+check_manifest_sync
+
 # Get current git info
 GIT_COMMIT=$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_COMMIT_FULL=$(git -C "$PROJECT_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
