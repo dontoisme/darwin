@@ -2,12 +2,12 @@
 #
 # darwin-diff
 #
-# Compare screenshots between two commits/directories and generate a visual diff report.
+# Compare screenshots between two captures and generate a visual diff report.
 # Uses ImageMagick for pixel-based comparison.
 #
 # Usage:
-#   darwin diff                         # Compare latest vs baseline
-#   darwin diff <commit1> <commit2>     # Compare two specific commits
+#   darwin diff                         # Compare latest vs parent
+#   darwin diff <capture1> <capture2>   # Compare two specific captures
 #   darwin diff --html                  # Generate HTML report
 #
 
@@ -42,16 +42,18 @@ else
     PROJECT_DIR="$(pwd)"
 fi
 
-DIFF_OUTPUT_DIR="$SCREENSHOT_DIR/diff"
+# New structure paths
+CAPTURES_DIR="$SCREENSHOT_DIR/captures"
+INDEX_FILE="$SCREENSHOT_DIR/index.json"
+DIFFS_DIR="$SCREENSHOT_DIR/diffs"
 
 echo -e "${BLUE}🧬 Darwin - Screenshot Diff${NC}"
 echo ""
 
 # Parse arguments
 GENERATE_HTML=false
-COMMIT1=""
-COMMIT2=""
-CUSTOM_DIR=""
+CAPTURE1=""
+CAPTURE2=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -59,49 +61,45 @@ while [[ $# -gt 0 ]]; do
             GENERATE_HTML=true
             shift
             ;;
-        --dir)
-            CUSTOM_DIR="$2"
-            shift 2
-            ;;
         --threshold)
             DIFF_THRESHOLD="$2"
             shift 2
             ;;
         --help|-h)
-            echo "Usage: darwin diff [OPTIONS] [commit1] [commit2]"
+            echo "Usage: darwin diff [OPTIONS] [capture1] [capture2]"
             echo ""
             echo "Options:"
             echo "  --html          Generate HTML report with visual diffs"
-            echo "  --dir PATH      Use custom screenshots directory"
             echo "  --threshold N   Percent difference threshold (default: 0.01)"
             echo "  --help          Show this help"
             echo ""
             echo "Arguments:"
-            echo "  commit1   First commit/directory (default: baseline)"
-            echo "  commit2   Second commit/directory (default: latest)"
+            echo "  capture1   First capture ID (default: parent of latest)"
+            echo "  capture2   Second capture ID (default: latest)"
             echo ""
             echo "Examples:"
-            echo "  darwin diff                           # Compare baseline vs latest"
-            echo "  darwin diff abc1234 def5678          # Compare two commits"
-            echo "  darwin diff baseline HEAD --html     # Generate HTML report"
+            echo "  darwin diff                           # Compare latest vs its parent"
+            echo "  darwin diff baseline abc1234          # Compare baseline to specific capture"
+            echo "  darwin diff baseline abc1234 --html   # Generate HTML report"
+            echo ""
+            echo "Available captures:"
+            if [ -f "$INDEX_FILE" ]; then
+                jq -r '.captures[] | "  \(.id) (\(.commit)) - \(.timestamp)"' "$INDEX_FILE" 2>/dev/null || echo "  (none)"
+            else
+                echo "  (no index.json found)"
+            fi
             exit 0
             ;;
         *)
-            if [ -z "$COMMIT1" ]; then
-                COMMIT1="$1"
-            elif [ -z "$COMMIT2" ]; then
-                COMMIT2="$1"
+            if [ -z "$CAPTURE1" ]; then
+                CAPTURE1="$1"
+            elif [ -z "$CAPTURE2" ]; then
+                CAPTURE2="$1"
             fi
             shift
             ;;
     esac
 done
-
-# Use custom directory if specified
-if [ -n "$CUSTOM_DIR" ]; then
-    SCREENSHOT_DIR="$CUSTOM_DIR"
-    DIFF_OUTPUT_DIR="$SCREENSHOT_DIR/diff"
-fi
 
 # Check for ImageMagick
 if ! command -v compare &> /dev/null; then
@@ -112,46 +110,74 @@ else
     USE_IMAGEMAGICK=true
 fi
 
-# Find directories to compare
-find_latest_capture() {
-    # Find most recent directory (by name, excluding baseline and diff)
-    ls -1d "$SCREENSHOT_DIR"/*/ 2>/dev/null | \
-        grep -v baseline | grep -v diff | \
-        sort -r | head -1 | xargs basename 2>/dev/null || echo ""
+# Helper to get capture info from index
+get_capture_parent() {
+    local capture_id="$1"
+    if [ -f "$INDEX_FILE" ]; then
+        jq -r ".captures[] | select(.id == \"$capture_id\") | .parent // empty" "$INDEX_FILE" 2>/dev/null
+    fi
 }
 
-if [ -z "$COMMIT1" ]; then
-    COMMIT1="baseline"
-fi
+get_latest_capture() {
+    if [ -f "$INDEX_FILE" ]; then
+        jq -r '.captures | last | .id // empty' "$INDEX_FILE" 2>/dev/null
+    fi
+}
 
-if [ -z "$COMMIT2" ]; then
-    COMMIT2=$(find_latest_capture)
-    if [ -z "$COMMIT2" ]; then
-        echo -e "${RED}Error: No screenshot captures found to compare${NC}"
+# Determine captures to compare
+if [ -z "$CAPTURE2" ]; then
+    # No captures specified - use latest and its parent
+    CAPTURE2=$(get_latest_capture)
+    if [ -z "$CAPTURE2" ]; then
+        echo -e "${RED}Error: No captures found in index.json${NC}"
         exit 1
+    fi
+    CAPTURE1=$(get_capture_parent "$CAPTURE2")
+    if [ -z "$CAPTURE1" ] || [ "$CAPTURE1" == "null" ]; then
+        CAPTURE1="baseline"
+    fi
+elif [ -z "$CAPTURE1" ]; then
+    # Only one capture specified - compare to its parent
+    CAPTURE1=$(get_capture_parent "$CAPTURE2")
+    if [ -z "$CAPTURE1" ] || [ "$CAPTURE1" == "null" ]; then
+        CAPTURE1="baseline"
     fi
 fi
 
-DIR1="$SCREENSHOT_DIR/$COMMIT1"
-DIR2="$SCREENSHOT_DIR/$COMMIT2"
+# Resolve capture directories
+DIR1="$CAPTURES_DIR/$CAPTURE1"
+DIR2="$CAPTURES_DIR/$CAPTURE2"
+
+# Fall back to old structure if new structure doesn't exist
+if [ ! -d "$DIR1" ] && [ -d "$SCREENSHOT_DIR/$CAPTURE1" ]; then
+    DIR1="$SCREENSHOT_DIR/$CAPTURE1"
+fi
+if [ ! -d "$DIR2" ] && [ -d "$SCREENSHOT_DIR/$CAPTURE2" ]; then
+    DIR2="$SCREENSHOT_DIR/$CAPTURE2"
+fi
 
 # Verify directories exist
 if [ ! -d "$DIR1" ]; then
-    echo -e "${RED}Error: Directory not found: $DIR1${NC}"
+    echo -e "${RED}Error: Capture not found: $CAPTURE1${NC}"
+    echo "Available captures:"
+    if [ -f "$INDEX_FILE" ]; then
+        jq -r '.captures[].id' "$INDEX_FILE" 2>/dev/null | sed 's/^/  /'
+    fi
     exit 1
 fi
 
 if [ ! -d "$DIR2" ]; then
-    echo -e "${RED}Error: Directory not found: $DIR2${NC}"
+    echo -e "${RED}Error: Capture not found: $CAPTURE2${NC}"
     exit 1
 fi
 
 echo "Comparing:"
-echo "  Base: $COMMIT1"
-echo "  New:  $COMMIT2"
+echo "  Base: $CAPTURE1"
+echo "  New:  $CAPTURE2"
 echo ""
 
 # Create diff output directory
+DIFF_OUTPUT_DIR="$DIFFS_DIR/${CAPTURE1}_${CAPTURE2}"
 mkdir -p "$DIFF_OUTPUT_DIR"
 
 # Results tracking
@@ -241,6 +267,22 @@ echo -e "  ${YELLOW}Changed:${NC}   ${#CHANGED_SCREENS[@]}"
 echo -e "  ${GREEN}New:${NC}       ${#NEW_SCREENS[@]}"
 echo -e "  ${RED}Missing:${NC}   ${#MISSING_SCREENS[@]}"
 
+# Save diff metadata
+cat > "$DIFF_OUTPUT_DIR/metadata.json" << EOF
+{
+  "base": "$CAPTURE1",
+  "target": "$CAPTURE2",
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "unchanged": ${#UNCHANGED_SCREENS[@]},
+  "changed": ${#CHANGED_SCREENS[@]},
+  "new": ${#NEW_SCREENS[@]},
+  "missing": ${#MISSING_SCREENS[@]},
+  "changedScreens": $(printf '%s\n' "${CHANGED_SCREENS[@]}" | jq -R 'split(":") | {id: .[0], percent: .[1]}' | jq -s '.' 2>/dev/null || echo "[]"),
+  "newScreens": $(printf '%s\n' "${NEW_SCREENS[@]}" | jq -R '.' | jq -s '.' 2>/dev/null || echo "[]"),
+  "missingScreens": $(printf '%s\n' "${MISSING_SCREENS[@]}" | jq -R '.' | jq -s '.' 2>/dev/null || echo "[]")
+}
+EOF
+
 # Generate HTML report if requested
 if $GENERATE_HTML; then
     HTML_FILE="$DIFF_OUTPUT_DIR/report.html"
@@ -273,7 +315,19 @@ if $GENERATE_HTML; then
     <h1>Darwin - Screenshot Diff Report</h1>
 HTMLHEAD
 
-    echo "<p>Comparing <strong>$COMMIT1</strong> → <strong>$COMMIT2</strong></p>" >> "$HTML_FILE"
+    # Use relative paths for images
+    BASE_REL="../captures/$CAPTURE1"
+    TARGET_REL="../captures/$CAPTURE2"
+
+    # Fall back to old structure paths if needed
+    if [ ! -d "$CAPTURES_DIR/$CAPTURE1" ]; then
+        BASE_REL="../$CAPTURE1"
+    fi
+    if [ ! -d "$CAPTURES_DIR/$CAPTURE2" ]; then
+        TARGET_REL="../$CAPTURE2"
+    fi
+
+    echo "<p>Comparing <strong>$CAPTURE1</strong> → <strong>$CAPTURE2</strong></p>" >> "$HTML_FILE"
 
     echo '<div class="summary">' >> "$HTML_FILE"
     echo "<div class=\"stat unchanged\"><strong>${#UNCHANGED_SCREENS[@]}</strong> Unchanged</div>" >> "$HTML_FILE"
@@ -291,8 +345,8 @@ HTMLHEAD
             echo "<div class=\"screen\">" >> "$HTML_FILE"
             echo "<h3>$screen ($percent% different)</h3>" >> "$HTML_FILE"
             echo '<div class="images">' >> "$HTML_FILE"
-            echo "<div><div class=\"label\">Before ($COMMIT1)</div><img src=\"../$COMMIT1/${screen}.png\"></div>" >> "$HTML_FILE"
-            echo "<div><div class=\"label\">After ($COMMIT2)</div><img src=\"../$COMMIT2/${screen}.png\"></div>" >> "$HTML_FILE"
+            echo "<div><div class=\"label\">Before ($CAPTURE1)</div><img src=\"$BASE_REL/${screen}.png\"></div>" >> "$HTML_FILE"
+            echo "<div><div class=\"label\">After ($CAPTURE2)</div><img src=\"$TARGET_REL/${screen}.png\"></div>" >> "$HTML_FILE"
             if [ -f "$DIFF_OUTPUT_DIR/${screen}-diff.png" ]; then
                 echo "<div><div class=\"label\">Diff</div><img src=\"${screen}-diff.png\" class=\"diff-highlight\"></div>" >> "$HTML_FILE"
             fi
@@ -307,7 +361,7 @@ HTMLHEAD
             echo "<div class=\"screen\">" >> "$HTML_FILE"
             echo "<h3>$screen</h3>" >> "$HTML_FILE"
             echo '<div class="images">' >> "$HTML_FILE"
-            echo "<div><div class=\"label\">New ($COMMIT2)</div><img src=\"../$COMMIT2/${screen}.png\"></div>" >> "$HTML_FILE"
+            echo "<div><div class=\"label\">New ($CAPTURE2)</div><img src=\"$TARGET_REL/${screen}.png\"></div>" >> "$HTML_FILE"
             echo '</div></div>' >> "$HTML_FILE"
         done
     fi
@@ -331,6 +385,27 @@ if [ ${#CHANGED_SCREENS[@]} -gt 0 ]; then
 fi
 
 echo ""
-echo -e "${CYAN}Diff images saved to:${NC} $DIFF_OUTPUT_DIR"
+echo -e "${CYAN}Diff saved to:${NC} $DIFF_OUTPUT_DIR"
+
+# Contextual next steps
+echo ""
+echo -e "${CYAN}What's next?${NC}"
+if [ ${#CHANGED_SCREENS[@]} -gt 0 ] || [ ${#NEW_SCREENS[@]} -gt 0 ]; then
+    if [ "$GENERATE_HTML" = false ]; then
+        echo "  View detailed report:"
+        echo "    ${GREEN}darwin diff --html${NC}          # Generate HTML diff report"
+        echo ""
+    fi
+    echo "  Explore visually:"
+    echo "    ${GREEN}darwin viewer${NC}               # Interactive timeline viewer"
+    echo ""
+    echo "  Continue iterating:"
+    echo "    1. Make more changes"
+    echo "    2. ${GREEN}darwin capture${NC}              # Capture new state"
+else
+    echo "  No changes detected! Your UI is stable."
+    echo "  Continue development and run ${GREEN}darwin capture${NC} after changes."
+fi
+
 echo ""
 echo -e "${GREEN}🧬 Done${NC}"

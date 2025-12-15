@@ -57,10 +57,16 @@ if ! load_config; then
     exit 1
 fi
 
+# New folder structure paths
+CAPTURES_DIR="$CONFIG_OUTPUT_PATH/captures"
+INDEX_FILE="$CONFIG_OUTPUT_PATH/index.json"
+
 # Get current git info
 GIT_COMMIT=$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_COMMIT_FULL=$(git -C "$PROJECT_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
+GIT_BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+TIMESTAMP_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 echo -e "${BLUE}🧬 Darwin - Screenshot Capture${NC}"
 echo "Project: $CONFIG_PROJECT"
@@ -127,6 +133,58 @@ if [ ! -f "$CONFIG_MANIFEST_PATH" ]; then
     exit 1
 fi
 
+# Initialize index.json if it doesn't exist
+init_index() {
+    if [ ! -f "$INDEX_FILE" ]; then
+        mkdir -p "$CONFIG_OUTPUT_PATH"
+        cat > "$INDEX_FILE" << EOF
+{
+  "version": "1.0",
+  "captures": []
+}
+EOF
+    fi
+}
+
+# Get the latest capture ID from index
+get_latest_capture() {
+    if [ -f "$INDEX_FILE" ]; then
+        jq -r '.captures | last | .id // empty' "$INDEX_FILE" 2>/dev/null
+    fi
+}
+
+# Get capture commit by ID
+get_capture_commit() {
+    local capture_id="$1"
+    if [ -f "$INDEX_FILE" ]; then
+        jq -r ".captures[] | select(.id == \"$capture_id\") | .commit" "$INDEX_FILE" 2>/dev/null
+    fi
+}
+
+# Add capture to index
+add_to_index() {
+    local capture_id="$1"
+    local parent_id="$2"
+    local screen_count="$3"
+
+    local new_entry=$(cat << EOF
+{
+  "id": "$capture_id",
+  "commit": "$GIT_COMMIT",
+  "commitFull": "$GIT_COMMIT_FULL",
+  "branch": "$GIT_BRANCH",
+  "timestamp": "$TIMESTAMP_ISO",
+  "parent": ${parent_id:+\"$parent_id\"}${parent_id:-null},
+  "screenCount": $screen_count,
+  "mode": "$MODE"
+}
+EOF
+)
+
+    # Add to index using jq
+    jq ".captures += [$new_entry]" "$INDEX_FILE" > "$INDEX_FILE.tmp" && mv "$INDEX_FILE.tmp" "$INDEX_FILE"
+}
+
 # Function to get screens affected by changed files
 get_affected_screens() {
     local changed_files="$1"
@@ -155,41 +213,35 @@ get_affected_screens() {
     echo "$affected_tests"
 }
 
-# Function to find last screenshot commit
-get_last_screenshot_commit() {
-    # Look for most recent commit folder in Screenshots
-    local last_commit=""
-    for dir in "$CONFIG_OUTPUT_PATH"/*/; do
-        if [ -d "$dir" ]; then
-            local dirname=$(basename "$dir")
-            # Skip 'baseline' folder
-            if [ "$dirname" != "baseline" ] && [ ${#dirname} -eq 7 ]; then
-                last_commit="$dirname"
-            fi
-        fi
-    done
-    echo "$last_commit"
-}
+# Initialize index
+init_index
 
 # Determine which screens to capture
 TESTS_TO_RUN=""
+CAPTURE_ID=""
+PARENT_ID=""
 OUTPUT_DIR=""
 
 case "$MODE" in
     baseline)
         echo -e "${YELLOW}Mode: BASELINE (capturing all screens)${NC}"
-        OUTPUT_DIR="$CONFIG_OUTPUT_PATH/baseline"
-        # Run all tests
+        CAPTURE_ID="baseline"
+        PARENT_ID=""
+        OUTPUT_DIR="$CAPTURES_DIR/baseline"
         TESTS_TO_RUN="all"
         ;;
     all)
         echo -e "${YELLOW}Mode: ALL (forcing full capture)${NC}"
-        OUTPUT_DIR="$CONFIG_OUTPUT_PATH/$GIT_COMMIT"
+        CAPTURE_ID="$GIT_COMMIT"
+        PARENT_ID=$(get_latest_capture)
+        OUTPUT_DIR="$CAPTURES_DIR/$GIT_COMMIT"
         TESTS_TO_RUN="all"
         ;;
     specific)
         echo -e "${YELLOW}Mode: SPECIFIC (screens: $SPECIFIC_SCREENS)${NC}"
-        OUTPUT_DIR="$CONFIG_OUTPUT_PATH/$GIT_COMMIT"
+        CAPTURE_ID="$GIT_COMMIT"
+        PARENT_ID=$(get_latest_capture)
+        OUTPUT_DIR="$CAPTURES_DIR/$GIT_COMMIT"
         # Convert screen IDs to test names
         IFS=',' read -ra SCREEN_IDS <<< "$SPECIFIC_SCREENS"
         for id in "${SCREEN_IDS[@]}"; do
@@ -208,32 +260,29 @@ case "$MODE" in
         ;;
     smart)
         echo -e "${YELLOW}Mode: SMART (detecting changes)${NC}"
-        OUTPUT_DIR="$CONFIG_OUTPUT_PATH/$GIT_COMMIT"
+        CAPTURE_ID="$GIT_COMMIT"
+        PARENT_ID=$(get_latest_capture)
+        OUTPUT_DIR="$CAPTURES_DIR/$GIT_COMMIT"
 
-        # Find what changed since last screenshot run
-        LAST_COMMIT=$(get_last_screenshot_commit)
-        if [ -z "$LAST_COMMIT" ]; then
-            # Check for baseline
-            if [ -d "$CONFIG_OUTPUT_PATH/baseline" ]; then
-                echo "Comparing against baseline..."
-                # Get baseline commit from metadata if exists
-                if [ -f "$CONFIG_OUTPUT_PATH/baseline/metadata.json" ]; then
-                    LAST_COMMIT=$(jq -r '.commit' "$CONFIG_OUTPUT_PATH/baseline/metadata.json" 2>/dev/null)
-                fi
-            fi
-        fi
-
-        if [ -z "$LAST_COMMIT" ] || [ "$LAST_COMMIT" == "null" ]; then
-            echo -e "${RED}No previous screenshots found. Run with --baseline first.${NC}"
+        # Find what changed since last capture
+        if [ -z "$PARENT_ID" ]; then
+            echo -e "${RED}No previous captures found. Run with --baseline first.${NC}"
             exit 1
         fi
 
-        echo "Last capture: $LAST_COMMIT"
+        PARENT_COMMIT=$(get_capture_commit "$PARENT_ID")
+
+        if [ -z "$PARENT_COMMIT" ] || [ "$PARENT_COMMIT" == "null" ]; then
+            echo -e "${RED}Could not determine parent commit. Run with --baseline first.${NC}"
+            exit 1
+        fi
+
+        echo "Last capture: $PARENT_ID (commit: $PARENT_COMMIT)"
         echo "Current: $GIT_COMMIT"
         echo ""
 
         # Get changed Swift files
-        CHANGED_FILES=$(git -C "$PROJECT_DIR" diff --name-only "$LAST_COMMIT" HEAD -- '*.swift' 2>/dev/null || echo "")
+        CHANGED_FILES=$(git -C "$PROJECT_DIR" diff --name-only "$PARENT_COMMIT" HEAD -- '*.swift' 2>/dev/null || echo "")
 
         if [ -z "$CHANGED_FILES" ]; then
             echo -e "${GREEN}No Swift files changed since last capture.${NC}"
@@ -269,6 +318,8 @@ if [ "$DRY_RUN" = true ]; then
         echo "Would run tests: $TESTS_TO_RUN"
     fi
     echo "Would save to: $OUTPUT_DIR"
+    echo "Capture ID: $CAPTURE_ID"
+    echo "Parent: ${PARENT_ID:-none}"
     exit 0
 fi
 
@@ -323,31 +374,73 @@ if [ -d "$CONFIG_OUTPUT_PATH" ]; then
     done
 fi
 
-# Generate metadata
-METADATA_FILE="$OUTPUT_DIR/metadata.json"
+# Count screenshots
 SCREENSHOT_COUNT=$(ls -1 "$OUTPUT_DIR"/*.png 2>/dev/null | wc -l | tr -d ' ')
 CAPTURED_SCREENS=$(ls -1 "$OUTPUT_DIR"/*.png 2>/dev/null | xargs -I {} basename {} .png | jq -R -s 'split("\n") | map(select(length > 0))' 2>/dev/null || echo "[]")
 
+# Generate metadata for this capture
+METADATA_FILE="$OUTPUT_DIR/metadata.json"
 cat > "$METADATA_FILE" << EOF
 {
+  "id": "$CAPTURE_ID",
   "commit": "$GIT_COMMIT",
-  "commit_full": "$GIT_COMMIT_FULL",
-  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "commitFull": "$GIT_COMMIT_FULL",
+  "branch": "$GIT_BRANCH",
+  "timestamp": "$TIMESTAMP_ISO",
   "mode": "$MODE",
-  "parent_commit": "${LAST_COMMIT:-null}",
-  "captured_screens": $CAPTURED_SCREENS,
-  "screenshot_count": $SCREENSHOT_COUNT
+  "parent": ${PARENT_ID:+\"$PARENT_ID\"}${PARENT_ID:-null},
+  "capturedScreens": $CAPTURED_SCREENS,
+  "screenCount": $SCREENSHOT_COUNT
 }
 EOF
 
+# Add to index (skip if already exists with same ID)
+EXISTING=$(jq -r ".captures[] | select(.id == \"$CAPTURE_ID\") | .id" "$INDEX_FILE" 2>/dev/null)
+if [ -z "$EXISTING" ]; then
+    add_to_index "$CAPTURE_ID" "$PARENT_ID" "$SCREENSHOT_COUNT"
+    echo -e "${GREEN}Added to timeline: $CAPTURE_ID${NC}"
+else
+    echo -e "${YELLOW}Capture $CAPTURE_ID already in timeline (updated in place)${NC}"
+fi
+
+echo ""
 echo -e "${GREEN}=== Screenshot Capture Complete ===${NC}"
 echo ""
+echo "Capture ID: $CAPTURE_ID"
 echo "Screenshots saved to: $OUTPUT_DIR"
 echo "Captured: $SCREENSHOT_COUNT screenshots"
 echo ""
 
 if [ -d "$OUTPUT_DIR" ]; then
-    ls -la "$OUTPUT_DIR"/*.png 2>/dev/null || echo "(no screenshots found)"
+    ls -la "$OUTPUT_DIR"/*.png 2>/dev/null | head -5 || echo "(no screenshots found)"
+    if [ "$SCREENSHOT_COUNT" -gt 5 ]; then
+        echo "... and $((SCREENSHOT_COUNT - 5)) more"
+    fi
+fi
+
+# Contextual next steps
+echo ""
+echo -e "${CYAN}What's next?${NC}"
+if [ "$MODE" == "baseline" ]; then
+    echo "  Your baseline is ready! Now you can:"
+    echo "    1. Make changes to your app"
+    echo "    2. Run: ${GREEN}darwin capture${NC}         # Smart capture changes"
+    echo "    3. Run: ${GREEN}darwin viewer${NC}          # Open visual timeline"
+    echo ""
+    echo "  Pro tip: Add a git hook to auto-capture on commit:"
+    echo "    ${GREEN}darwin hook install${NC}"
+else
+    CAPTURE_COUNT=$(jq '.captures | length' "$INDEX_FILE" 2>/dev/null || echo "0")
+    if [ "$CAPTURE_COUNT" -gt 1 ]; then
+        echo "  Compare changes:"
+        echo "    ${GREEN}darwin diff${NC}                 # Compare to previous"
+        echo "    ${GREEN}darwin diff --html${NC}          # HTML diff report"
+        echo ""
+        echo "  Visualize timeline:"
+        echo "    ${GREEN}darwin viewer${NC}               # Open interactive viewer"
+    else
+        echo "  Continue developing and run ${GREEN}darwin capture${NC} after changes."
+    fi
 fi
 
 echo ""

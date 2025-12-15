@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "captures": [
+    {
+      "id": "baseline",
+      "commit": "abc1234",
+      "commitFull": "abc1234567890",
+      "branch": "main",
+      "timestamp": "2025-12-15T12:00:00Z",
+      "parent": null,
+      "screenCount": 6,
+      "mode": "baseline"
+    }
+  ]
+}

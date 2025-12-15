@@ -33,15 +33,22 @@ print_usage() {
     echo "  init        Initialize darwin in current project"
     echo "  capture     Capture screenshots (smart by default)"
     echo "  diff        Compare screenshots between commits"
+    echo "  viewer      Open unified viewer (single/compare/timelapse/map)"
+    echo "  status      Show current darwin state"
+    echo "  hook        Install/manage git hooks for auto-capture"
     echo "  version     Show version"
     echo "  help        Show this help message"
     echo ""
-    echo "Examples:"
-    echo "  darwin init                    # Set up darwin in your iOS project"
-    echo "  darwin capture --baseline      # Capture baseline screenshots"
-    echo "  darwin capture --smart         # Capture only changed screens"
-    echo "  darwin diff baseline HEAD      # Compare baseline to current"
-    echo "  darwin diff HEAD~3 HEAD --html # Compare with HTML report"
+    echo "Quick Start:"
+    echo "  darwin init                    # 1. Set up darwin in your project"
+    echo "  darwin capture --baseline      # 2. Capture baseline screenshots"
+    echo "  # ... make changes ..."
+    echo "  darwin capture                 # 3. Smart capture changed screens"
+    echo "  darwin viewer                  # 4. See your app evolve!"
+    echo ""
+    echo "Automation:"
+    echo "  darwin hook install            # Auto-prompt after commits"
+    echo "  darwin hook install --auto     # Auto-capture after commits"
     echo ""
     echo "For more info on a command: darwin <command> --help"
 }
@@ -81,6 +88,22 @@ case "${1:-}" in
     diff)
         shift
         exec "$SCRIPT_DIR/darwin-diff" "$@"
+        ;;
+    map)
+        shift
+        exec "$SCRIPT_DIR/darwin-map" "$@"
+        ;;
+    viewer)
+        shift
+        exec "$SCRIPT_DIR/darwin-viewer" "$@"
+        ;;
+    hook)
+        shift
+        exec "$SCRIPT_DIR/darwin-hook" "$@"
+        ;;
+    status)
+        shift
+        exec "$SCRIPT_DIR/darwin-status" "$@"
         ;;
     version|--version|-v)
         echo "darwin $VERSION"

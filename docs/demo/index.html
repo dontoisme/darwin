@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darwin - Screenshot Viewer</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --border: #30363d;
+            --accent: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-yellow: #d29922;
+            --accent-red: #f85149;
+            --accent-purple: #a371f7;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 60px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            gap: 24px;
+        }
+        .header h1 {
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .mode-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-tertiary);
+            padding: 4px;
+            border-radius: 8px;
+        }
+        .mode-tab {
+            padding: 8px 16px;
+            border: none;
+            background: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .mode-tab:hover { color: var(--text); }
+        .mode-tab.active {
+            background: var(--accent);
+            color: var(--bg);
+        }
+        .header-controls {
+            margin-left: auto;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .capture-select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        /* Map Toolbar Filters */
+        .map-toolbar {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            margin-left: 16px;
+            padding-left: 16px;
+            border-left: 1px solid var(--border);
+        }
+        .map-toolbar.visible { display: flex; }
+        .filter-group {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+        .filter-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-right: 4px;
+        }
+        .filter-btn {
+            padding: 4px 10px;
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .filter-btn:hover { border-color: var(--text-muted); color: var(--text); }
+        .filter-btn.active {
+            border-color: currentColor;
+            color: var(--text);
+            background: var(--bg-secondary);
+        }
+        .filter-btn .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .filter-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--border);
+            margin: 0 8px;
+        }
+        .toggle-btn {
+            padding: 4px 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .toggle-btn:hover { color: var(--text); }
+        .toggle-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+        /* Main content */
+        .main {
+            padding-top: 60px;
+            min-height: 100vh;
+        }
+
+        /* Single/Compare View */
+        .view-single, .view-compare {
+            padding: 20px;
+        }
+        .screen-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .screen-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .screen-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+        .screen-card.faded {
+            opacity: 0.3;
+        }
+        .screen-card.changed {
+            border-color: var(--accent-yellow);
+            box-shadow: 0 0 0 1px var(--accent-yellow);
+        }
+        .screen-card img {
+            width: 100%;
+            display: block;
+        }
+        .screen-card .label {
+            padding: 12px;
+            border-top: 1px solid var(--border);
+        }
+        .screen-card .label h3 {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        .screen-card .label .id {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+        .screen-card .change-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: var(--accent-yellow);
+            color: var(--bg);
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+
+        /* Compare mode */
+        .compare-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+        .compare-column h2 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: var(--text-muted);
+        }
+
+        /* Timelapse */
+        .timelapse-controls {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 16px 20px;
+            z-index: 100;
+        }
+        .timeline-slider {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            outline: none;
+        }
+        .timeline-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .timeline-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+            font-size: 14px;
+        }
+        .timeline-commit {
+            font-family: monospace;
+            color: var(--accent);
+        }
+        .play-btn {
+            background: var(--accent);
+            border: none;
+            color: var(--bg);
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* Map View */
+        .map-container {
+            position: fixed;
+            top: 60px; left: 0; right: 0; bottom: 100px;
+            overflow: hidden;
+            cursor: grab;
+        }
+        .map-container:active { cursor: grabbing; }
+        .map-canvas {
+            position: absolute;
+            transform-origin: 0 0;
+        }
+        .map-screen {
+            position: absolute;
+            background: var(--bg-secondary);
+            border: 3px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.3s, opacity 0.3s, border-color 0.3s, box-shadow 0.3s;
+        }
+        .map-screen:hover {
+            transform: scale(1.02);
+            z-index: 10;
+        }
+        .map-screen.faded {
+            opacity: 0.25;
+        }
+        .map-screen.changed {
+            border-color: var(--accent-yellow);
+            box-shadow: 0 0 20px rgba(210, 153, 34, 0.5);
+            z-index: 5;
+        }
+        .map-screen.new-screen {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 20px rgba(63, 185, 80, 0.5);
+            z-index: 5;
+        }
+        .map-screen img { width: 100%; display: block; }
+        .map-screen .screen-label {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            padding: 40px 12px 12px;
+            font-size: 12px;
+            color: white;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .map-screen:hover .screen-label { opacity: 1; }
+        .map-connections {
+            position: absolute;
+            top: 0; left: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .connection {
+            fill: none;
+            stroke: var(--accent-red);
+            stroke-width: 5;
+            opacity: 0.8;
+            stroke-linecap: round;
+        }
+        .connection.hidden { opacity: 0; }
+        .connection-arrow {
+            fill: var(--accent-red);
+            opacity: 0.9;
+        }
+        .connection-arrow.hidden { opacity: 0; }
+
+        /* Map Timeline Controls */
+        .map-timeline {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: 100px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 16px 24px;
+            z-index: 100;
+        }
+        .timeline-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+        .timeline-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s;
+        }
+        .timeline-btn:hover { background: var(--border); }
+        .timeline-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+        .speed-select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .timeline-track {
+            flex: 1;
+            position: relative;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+        .timeline-progress {
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            background: var(--accent);
+            border-radius: 4px;
+            transition: width 0.1s;
+        }
+        .timeline-markers {
+            position: absolute;
+            top: -4px; left: 0; right: 0; bottom: -4px;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 4px;
+        }
+        .timeline-marker {
+            width: 4px;
+            height: 16px;
+            background: var(--border);
+            border-radius: 2px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .timeline-marker:hover { background: var(--accent); }
+        .timeline-marker.active { background: var(--accent); }
+        .timeline-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .timeline-info .commit { font-family: monospace; color: var(--accent); }
+        .timeline-info .changes { color: var(--accent-yellow); }
+
+        /* Legend */
+        .legend {
+            position: fixed;
+            top: 80px; left: 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            z-index: 50;
+            font-size: 13px;
+        }
+        .legend h4 {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            max-width: 95vw;
+            max-height: 95vh;
+            overflow: hidden;
+            display: flex;
+        }
+        .modal img {
+            max-height: 90vh;
+            max-width: 70vw;
+            object-fit: contain;
+        }
+        .modal-info {
+            width: 500px;
+            padding: 24px;
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+        }
+        .modal-info h2 { font-size: 20px; margin-bottom: 8px; }
+        .modal-info .id { font-family: monospace; color: var(--text-muted); margin-bottom: 16px; }
+        .modal-info h4 { font-size: 12px; text-transform: uppercase; color: var(--text-muted); margin: 16px 0 8px; }
+        .modal-info ul { list-style: none; font-size: 14px; }
+        .modal-info li { padding: 4px 0; }
+        .modal-info a { color: var(--accent); text-decoration: none; }
+
+        /* Mini-map in modal */
+        .mini-map {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 30px;
+            margin-top: 20px;
+            position: relative;
+            height: 500px;
+            overflow: hidden;
+        }
+        .mini-map-canvas {
+            position: relative;
+            width: 100%;
+            height: calc(100% - 50px);
+        }
+        .mini-screen {
+            position: absolute;
+            background: var(--bg-tertiary);
+            border: 3px solid var(--border);
+            border-radius: 8px;
+            width: 70px;
+            height: 120px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: var(--text-muted);
+            text-align: center;
+            overflow: hidden;
+        }
+        .mini-screen:hover {
+            border-color: var(--accent);
+            transform: scale(1.1);
+            z-index: 10;
+        }
+        .mini-screen.current {
+            border-color: var(--accent);
+            background: var(--bg-secondary);
+            width: 100px;
+            height: 170px;
+            z-index: 5;
+            box-shadow: 0 0 20px rgba(88, 166, 255, 0.4);
+        }
+        .mini-screen.incoming { border-color: var(--accent-green); }
+        .mini-screen.outgoing { border-color: var(--accent-yellow); }
+        .mini-screen.bidirectional { border-color: var(--accent-purple); }
+        .mini-map-svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .mini-connection {
+            fill: none;
+            stroke: var(--border);
+            stroke-width: 3;
+            opacity: 0.7;
+        }
+        .mini-connection.incoming { stroke: var(--accent-green); }
+        .mini-connection.outgoing { stroke: var(--accent-yellow); }
+        .mini-connection.bidirectional { stroke: var(--accent-purple); }
+        .mini-arrow {
+            fill: var(--border);
+        }
+        .mini-arrow.incoming { fill: var(--accent-green); }
+        .mini-arrow.outgoing { fill: var(--accent-yellow); }
+        .mini-arrow.bidirectional { fill: var(--accent-purple); }
+        .mini-map-legend {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--text);
+            margin-bottom: 12px;
+            justify-content: center;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+        }
+        .mini-map-legend span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .mini-map-legend .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        /* Hover states for mini-map */
+        .mini-map-canvas.has-hover .mini-screen {
+            opacity: 0.25;
+            transition: opacity 0.2s;
+        }
+        .mini-map-canvas.has-hover .mini-screen.current,
+        .mini-map-canvas.has-hover .mini-screen.hover-target {
+            opacity: 1;
+        }
+        .mini-map-canvas.has-hover .mini-connection {
+            opacity: 0.15;
+        }
+        .mini-map-canvas.has-hover .mini-connection.hover-active {
+            opacity: 1;
+        }
+        .modal-close {
+            position: fixed;
+            top: 20px; right: 20px;
+            background: var(--border);
+            border: none;
+            color: var(--text);
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 24px;
+            z-index: 2001;
+        }
+
+        /* Filters */
+        .filters {
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        .filter-label {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        .filter-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .filter-toggle input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>🧬 Darwin</h1>
+        <div class="mode-tabs">
+            <button class="mode-tab" data-mode="single">Single</button>
+            <button class="mode-tab" data-mode="compare">Compare</button>
+            <button class="mode-tab" data-mode="timelapse">Timelapse</button>
+            <button class="mode-tab active" data-mode="map">Map</button>
+        </div>
+        <div class="map-toolbar" id="mapToolbar">
+            <span class="filter-label">Groups</span>
+            <div class="filter-group" id="groupFilters"></div>
+            <div class="filter-divider"></div>
+            <span class="filter-label">Show</span>
+            <div class="filter-group" id="changeFilters">
+                <button class="filter-btn active" data-filter="all" onclick="setChangeFilter('all')">All</button>
+                <button class="filter-btn" data-filter="changed" onclick="setChangeFilter('changed')">
+                    <span class="dot" style="background: var(--accent-yellow)"></span>Changed
+                </button>
+                <button class="filter-btn" data-filter="new" onclick="setChangeFilter('new')">
+                    <span class="dot" style="background: var(--accent-green)"></span>New
+                </button>
+            </div>
+            <div class="filter-divider"></div>
+            <button class="toggle-btn active" id="showFlowsBtn" onclick="toggleFlows()">Flows</button>
+            <div class="filter-divider"></div>
+            <button class="toggle-btn" id="unfadeBtn" onclick="toggleUnfade()">Show All</button>
+        </div>
+        <div class="header-controls">
+            <select class="capture-select" id="captureSelect"></select>
+            <select class="capture-select" id="captureSelect2" style="display:none"></select>
+        </div>
+    </header>
+
+    <main class="main" id="main">
+        <!-- Content rendered by JS -->
+    </main>
+
+    <div class="modal-overlay" id="modal">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <div class="modal">
+            <img id="modalImg" src="">
+            <div class="modal-info">
+                <h2 id="modalTitle"></h2>
+                <div class="id" id="modalId"></div>
+                <h4>Flows To</h4>
+                <ul id="modalFlows"></ul>
+                <h4>Source Files</h4>
+                <ul id="modalSources"></ul>
+                <h4>Connection Map</h4>
+                <div class="mini-map">
+                    <div class="mini-map-legend">
+                        <span><div class="dot" style="background: var(--accent-green)"></div> Incoming</span>
+                        <span><div class="dot" style="background: var(--accent-yellow)"></div> Outgoing</span>
+                        <span><div class="dot" style="background: var(--accent-purple)"></div> Both</span>
+                    </div>
+                    <div class="mini-map-canvas" id="miniMapCanvas">
+                        <svg class="mini-map-svg" id="miniMapSvg"></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Injected data
+        const MANIFEST = {"version":"1.1","screens":{"01-library-empty":{"name":"Library (Empty)","test":"test01_LibraryEmpty","sources":["Sources/Library/LibraryView.swift"],"flows_to":["02-library-with-books"]},"02-library-with-books":{"name":"Library (With Books)","test":"test02_LibraryWithBooks","sources":["Sources/Library/LibraryView.swift","Sources/Library/BookRowView.swift"],"flows_to":["05-library-miniplayer","09-player-main","14-profile-not-logged-in","21-settings-main"]},"05-library-miniplayer":{"name":"Library (Mini Player)","test":"test05_LibraryMiniPlayer","sources":["Sources/Player/MiniPlayerView.swift"],"flows_to":["09-player-main"]},"09-player-main":{"name":"Player Main","test":"test09_PlayerMain","sources":["Sources/Player/PlayerView.swift"],"flows_to":["02-library-with-books"]},"14-profile-not-logged-in":{"name":"Profile","test":"test14_Profile","sources":["Sources/Profile/ProfileView.swift"],"flows_to":["02-library-with-books"]},"21-settings-main":{"name":"Settings","test":"test21_Settings","sources":["Sources/Settings/SettingsView.swift"],"flows_to":["02-library-with-books"]}},"groups":{"library":{"name":"Library","color":"#58a6ff","screens":["01-library-empty","02-library-with-books","05-library-miniplayer"]},"player":{"name":"Player","color":"#3fb950","screens":["09-player-main"]},"profile":{"name":"Profile","color":"#a371f7","screens":["14-profile-not-logged-in"]},"settings":{"name":"Settings","color":"#f0883e","screens":["21-settings-main"]}}};
+        const INDEX = {"version":"1.0","captures":[{"id":"baseline","commit":"abc1234","commitFull":"abc1234567890","branch":"main","timestamp":"2025-12-15T12:00:00Z","parent":null,"screenCount":6,"mode":"baseline"}]};
+        const CAPTURES_DIR = "captures";
+
+        // State
+        let currentMode = 'map';
+        let selectedCapture = null;
+        let selectedCapture2 = null;
+        let timelinePosition = 0;
+        let isPlaying = false;
+
+        // Map state
+        let mapScale = 0.25;
+        let mapTranslateX = 50;
+        let mapTranslateY = 50;
+        let isDragging = false;
+        let dragStartX, dragStartY;
+
+        // Timeline state for map
+        let mapTimelineIdx = 0;
+        let mapIsPlaying = false;
+        let mapPlaybackSpeed = 1500; // ms per frame
+        let mapPlaybackTimer = null;
+
+        // Screen positions for map
+        const screenPositions = {};
+
+        // Cache for tracking which screens exist in each capture
+        const captureScreensCache = {};
+
+        // Filter state
+        let activeGroups = new Set(); // empty = all groups shown
+        let changeFilter = 'all'; // 'all', 'changed', 'new'
+        let showFlows = true;
+        let showAllScreens = false; // when true, don't fade unchanged screens
+        let layoutDirection = 'vertical'; // 'horizontal' or 'vertical'
+
+        function init() {
+            populateCaptureSelects();
+            setupEventListeners();
+            renderMode();
+        }
+
+        function populateCaptureSelects() {
+            const select1 = document.getElementById('captureSelect');
+            const select2 = document.getElementById('captureSelect2');
+
+            const captures = INDEX.captures || [];
+            const lastIdx = captures.length - 1;
+
+            captures.forEach((cap, idx) => {
+                const date = new Date(cap.timestamp).toLocaleDateString();
+                const isLatest = idx === lastIdx;
+                const label = isLatest
+                    ? `${cap.id} - ${date} (latest)`
+                    : `${cap.id} - ${date}`;
+
+                const opt1 = document.createElement('option');
+                opt1.value = cap.id;
+                opt1.textContent = label;
+                select1.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = cap.id;
+                opt2.textContent = label;
+                select2.appendChild(opt2);
+            });
+
+            if (captures.length > 0) {
+                selectedCapture = captures[captures.length - 1].id;
+                select1.value = selectedCapture;
+                if (captures.length > 1) {
+                    selectedCapture2 = captures[captures.length - 2].id;
+                    select2.value = selectedCapture2;
+                }
+            }
+        }
+
+        function setupEventListeners() {
+            document.querySelectorAll('.mode-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelector('.mode-tab.active').classList.remove('active');
+                    tab.classList.add('active');
+                    currentMode = tab.dataset.mode;
+                    renderMode();
+                });
+            });
+
+            document.getElementById('captureSelect').addEventListener('change', (e) => {
+                selectedCapture = e.target.value;
+                renderMode();
+            });
+
+            document.getElementById('captureSelect2').addEventListener('change', (e) => {
+                selectedCapture2 = e.target.value;
+                renderMode();
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeModal();
+            });
+        }
+
+        function renderMode() {
+            const main = document.getElementById('main');
+            const select2 = document.getElementById('captureSelect2');
+            const mapToolbar = document.getElementById('mapToolbar');
+
+            select2.style.display = currentMode === 'compare' ? 'block' : 'none';
+            mapToolbar.classList.toggle('visible', currentMode === 'map');
+
+            // Stop map playback when switching modes
+            if (currentMode !== 'map' && mapIsPlaying) {
+                mapIsPlaying = false;
+                if (mapPlaybackTimer) {
+                    clearTimeout(mapPlaybackTimer);
+                    mapPlaybackTimer = null;
+                }
+            }
+
+            switch (currentMode) {
+                case 'single':
+                    renderSingleView(main);
+                    break;
+                case 'compare':
+                    renderCompareView(main);
+                    break;
+                case 'timelapse':
+                    renderTimelapseView(main);
+                    break;
+                case 'map':
+                    populateGroupFilters();
+                    renderMapView(main);
+                    break;
+            }
+        }
+
+        function populateGroupFilters() {
+            const container = document.getElementById('groupFilters');
+            const groups = MANIFEST.groups || {};
+
+            container.innerHTML = Object.entries(groups).map(([id, group]) => `
+                <button class="filter-btn active" data-group="${id}" onclick="toggleGroupFilter('${id}')" style="--group-color: ${group.color}">
+                    <span class="dot" style="background: ${group.color}"></span>${group.name}
+                </button>
+            `).join('');
+
+            // Initialize all groups as active
+            activeGroups = new Set(Object.keys(groups));
+        }
+
+        function toggleGroupFilter(groupId) {
+            const btn = document.querySelector(`.filter-btn[data-group="${groupId}"]`);
+            if (activeGroups.has(groupId)) {
+                activeGroups.delete(groupId);
+                btn.classList.remove('active');
+            } else {
+                activeGroups.add(groupId);
+                btn.classList.add('active');
+            }
+            applyMapFilters();
+        }
+
+        function setChangeFilter(filter) {
+            changeFilter = filter;
+            document.querySelectorAll('#changeFilters .filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.filter === filter);
+            });
+            applyMapFilters();
+        }
+
+        function toggleFlows() {
+            showFlows = !showFlows;
+            const btn = document.getElementById('showFlowsBtn');
+            btn.classList.toggle('active', showFlows);
+            document.querySelectorAll('.connection, .connection-arrow').forEach(el => {
+                el.classList.toggle('hidden', !showFlows);
+            });
+        }
+
+        function setLayout(direction) {
+            layoutDirection = direction;
+            document.getElementById('layoutHBtn').classList.toggle('active', direction === 'horizontal');
+            document.getElementById('layoutVBtn').classList.toggle('active', direction === 'vertical');
+            // Re-render the map with new layout
+            renderMapView(document.getElementById('main'));
+        }
+
+        function toggleUnfade() {
+            showAllScreens = !showAllScreens;
+            const btn = document.getElementById('unfadeBtn');
+            btn.classList.toggle('active', showAllScreens);
+            btn.textContent = showAllScreens ? 'Highlight Changes' : 'Show All';
+            // Re-apply timeline to update fading
+            updateMapTimeline();
+        }
+
+        function applyMapFilters() {
+            const groups = MANIFEST.groups || {};
+
+            // Build set of visible screen IDs based on group filter
+            const visibleByGroup = new Set();
+            for (const [groupId, group] of Object.entries(groups)) {
+                if (activeGroups.size === 0 || activeGroups.has(groupId)) {
+                    (group.screens || []).forEach(screenId => visibleByGroup.add(screenId));
+                }
+            }
+
+            // Apply visibility to each screen
+            document.querySelectorAll('.map-screen').forEach(screenDiv => {
+                const screenId = screenDiv.dataset.screenId;
+                const isInActiveGroup = visibleByGroup.has(screenId);
+                const isChanged = screenDiv.classList.contains('changed');
+                const isNew = screenDiv.classList.contains('new-screen');
+
+                let visible = isInActiveGroup;
+
+                // Apply change filter
+                if (changeFilter === 'changed') {
+                    visible = visible && isChanged;
+                } else if (changeFilter === 'new') {
+                    visible = visible && isNew;
+                }
+
+                screenDiv.style.display = visible ? 'block' : 'none';
+            });
+
+            // Update connection visibility based on visible screens
+            document.querySelectorAll('.connection, .connection-arrow').forEach(el => {
+                if (!showFlows) {
+                    el.classList.add('hidden');
+                    return;
+                }
+                const from = el.dataset.from;
+                const to = el.dataset.to;
+                const fromVisible = document.getElementById(`map-screen-${from}`)?.style.display !== 'none';
+                const toVisible = document.getElementById(`map-screen-${to}`)?.style.display !== 'none';
+                el.classList.toggle('hidden', !fromVisible || !toVisible);
+            });
+        }
+
+        function renderSingleView(container) {
+            const screens = Object.entries(MANIFEST.screens);
+            container.innerHTML = `
+                <div class="view-single">
+                    <div class="screen-grid">
+                        ${screens.map(([id, screen]) => `
+                            <div class="screen-card" onclick="openModal('${id}')">
+                                <img src="${CAPTURES_DIR}/${selectedCapture}/${id}.png"
+                                     onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22500%22><rect fill=%22%23161b22%22 width=%22300%22 height=%22500%22/><text x=%22150%22 y=%22250%22 fill=%22%238b949e%22 text-anchor=%22middle%22>Not captured</text></svg>'">
+                                <div class="label">
+                                    <h3>${screen.name}</h3>
+                                    <div class="id">${id}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCompareView(container) {
+            const screens = Object.entries(MANIFEST.screens);
+            container.innerHTML = `
+                <div class="filters">
+                    <span class="filter-label">Show:</span>
+                    <label class="filter-toggle">
+                        <input type="checkbox" id="showChangedOnly">
+                        Changed only
+                    </label>
+                </div>
+                <div class="compare-container">
+                    <div class="compare-column">
+                        <h2>Base: ${selectedCapture2}</h2>
+                        <div class="screen-grid" id="compareLeft">
+                            ${screens.map(([id, screen]) => `
+                                <div class="screen-card" data-id="${id}" onclick="openModal('${id}', '${selectedCapture2}')">
+                                    <img src="${CAPTURES_DIR}/${selectedCapture2}/${id}.png" onerror="this.style.display='none'">
+                                    <div class="label">
+                                        <h3>${screen.name}</h3>
+                                        <div class="id">${id}</div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="compare-column">
+                        <h2>Target: ${selectedCapture}</h2>
+                        <div class="screen-grid" id="compareRight">
+                            ${screens.map(([id, screen]) => `
+                                <div class="screen-card" data-id="${id}" onclick="openModal('${id}', '${selectedCapture}')">
+                                    <img src="${CAPTURES_DIR}/${selectedCapture}/${id}.png" onerror="this.style.display='none'">
+                                    <div class="label">
+                                        <h3>${screen.name}</h3>
+                                        <div class="id">${id}</div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTimelapseView(container) {
+            const captures = INDEX.captures || [];
+            const screens = Object.entries(MANIFEST.screens);
+
+            container.innerHTML = `
+                <div class="filters">
+                    <span class="filter-label">Highlight changes</span>
+                    <label class="filter-toggle">
+                        <input type="checkbox" id="fadeUnchanged" checked onchange="updateTimelapse()">
+                        Fade unchanged
+                    </label>
+                </div>
+                <div class="view-single" style="padding-bottom: 120px;">
+                    <div class="screen-grid" id="timelapseGrid">
+                        ${screens.map(([id, screen]) => `
+                            <div class="screen-card" data-id="${id}" onclick="openModal('${id}')">
+                                <img src="" data-screen="${id}"
+                                     onerror="this.onerror=null; this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22500%22><rect fill=%22%23161b22%22 width=%22300%22 height=%22500%22/><text x=%22150%22 y=%22250%22 fill=%22%238b949e%22 text-anchor=%22middle%22 font-family=%22system-ui%22>Not in this capture</text></svg>'; this.parentElement.classList.add('faded');">
+                                <div class="label">
+                                    <h3>${screen.name}</h3>
+                                    <div class="id">${id}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="timelapse-controls">
+                    <input type="range" class="timeline-slider" id="timelineSlider"
+                           min="0" max="${captures.length - 1}" value="${captures.length - 1}"
+                           oninput="updateTimelapse()">
+                    <div class="timeline-info">
+                        <span id="timelineDate"></span>
+                        <span class="timeline-commit" id="timelineCommit"></span>
+                        <button class="play-btn" onclick="togglePlay()">${isPlaying ? '⏸ Pause' : '▶ Play'}</button>
+                    </div>
+                </div>
+            `;
+            updateTimelapse();
+        }
+
+        function updateTimelapse() {
+            const slider = document.getElementById('timelineSlider');
+            const captures = INDEX.captures || [];
+            const idx = parseInt(slider.value);
+            const capture = captures[idx];
+
+            if (!capture) return;
+
+            document.getElementById('timelineDate').textContent = new Date(capture.timestamp).toLocaleDateString();
+            document.getElementById('timelineCommit').textContent = capture.commit;
+
+            // Update images
+            document.querySelectorAll('#timelapseGrid img[data-screen]').forEach(img => {
+                const screenId = img.dataset.screen;
+                img.src = `${CAPTURES_DIR}/${capture.id}/${screenId}.png`;
+            });
+
+            // Fade unchanged if enabled
+            const fadeUnchanged = document.getElementById('fadeUnchanged')?.checked;
+            if (fadeUnchanged && idx > 0) {
+                const prevCapture = captures[idx - 1];
+                // In real implementation, we'd compare actual files
+                // For now, just show all
+            }
+        }
+
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            if (isPlaying) {
+                playTimelapse();
+            }
+        }
+
+        function playTimelapse() {
+            if (!isPlaying) return;
+            const slider = document.getElementById('timelineSlider');
+            const max = parseInt(slider.max);
+            let val = parseInt(slider.value);
+
+            if (val < max) {
+                slider.value = val + 1;
+                updateTimelapse();
+                setTimeout(playTimelapse, 1000);
+            } else {
+                isPlaying = false;
+            }
+        }
+
+        function renderMapView(container) {
+            const captures = INDEX.captures || [];
+            mapTimelineIdx = captures.length - 1; // Start at latest
+            layoutScreensForMap();
+
+            container.innerHTML = `
+                <div class="map-container" id="mapContainer">
+                    <div class="map-canvas" id="mapCanvas">
+                        <svg class="map-connections" id="mapConnections"></svg>
+                    </div>
+                </div>
+                <div class="map-timeline">
+                    <div class="timeline-row">
+                        <button class="timeline-btn" id="mapRewindBtn" onclick="mapRewind()" title="Go to beginning">
+                            ⏮ Start
+                        </button>
+                        <button class="timeline-btn" id="mapPlayBtn" onclick="mapTogglePlay()">
+                            ▶ Play
+                        </button>
+                        <button class="timeline-btn" id="mapStepBtn" onclick="mapStep()" title="Step forward">
+                            ⏭ Step
+                        </button>
+                        <div class="timeline-track" id="mapTrack" onclick="mapTrackClick(event)">
+                            <div class="timeline-progress" id="mapProgress"></div>
+                            <div class="timeline-markers" id="mapMarkers">
+                                ${captures.map((_, i) => `<div class="timeline-marker" data-idx="${i}" onclick="mapJumpTo(${i}); event.stopPropagation();"></div>`).join('')}
+                            </div>
+                        </div>
+                        <select class="speed-select" id="mapSpeedSelect" onchange="mapSetSpeed(this.value)">
+                            <option value="3000">0.5x</option>
+                            <option value="1500" selected>1x</option>
+                            <option value="750">2x</option>
+                            <option value="400">4x</option>
+                        </select>
+                    </div>
+                    <div class="timeline-info">
+                        <span id="mapTimelineDate"></span>
+                        <span id="mapTimelineChanges" class="changes"></span>
+                        <span class="commit" id="mapTimelineCommit"></span>
+                    </div>
+                </div>
+            `;
+
+            renderMapScreens();
+            renderMapConnections();
+            setupMapControls();
+            updateMapTransform();
+            updateMapTimeline();
+        }
+
+        function layoutScreensForMap() {
+            const SCREEN_WIDTH = 280;
+            const SCREEN_HEIGHT = 600;
+            const H_PADDING = 80;
+            const V_PADDING = 120;
+            const groups = MANIFEST.groups || {};
+
+            // Build reverse flow map (who flows TO this screen)
+            const incomingFlows = {};
+            for (const [screenId, screen] of Object.entries(MANIFEST.screens)) {
+                if (!incomingFlows[screenId]) incomingFlows[screenId] = [];
+                for (const targetId of (screen.flows_to || [])) {
+                    if (!incomingFlows[targetId]) incomingFlows[targetId] = [];
+                    incomingFlows[targetId].push(screenId);
+                }
+            }
+
+            // Calculate depth for each screen (BFS from roots)
+            const screenDepth = {};
+            const screenGroup = {};
+
+            // Map screens to their groups
+            for (const [groupId, group] of Object.entries(groups)) {
+                for (const screenId of (group.screens || [])) {
+                    screenGroup[screenId] = { id: groupId, color: group.color, name: group.name };
+                }
+            }
+
+            // Find root screens per group (first screen in each group, or screens with minimal incoming flows)
+            const roots = [];
+            for (const [groupId, group] of Object.entries(groups)) {
+                const groupScreens = group.screens || [];
+                if (groupScreens.length > 0) {
+                    // Use first screen as root, or find one with no internal incoming flows
+                    let root = groupScreens[0];
+                    for (const screenId of groupScreens) {
+                        const incoming = (incomingFlows[screenId] || []).filter(s => groupScreens.includes(s));
+                        if (incoming.length === 0) {
+                            root = screenId;
+                            break;
+                        }
+                    }
+                    roots.push({ screenId: root, groupId });
+                }
+            }
+
+            // BFS to assign depths within each group
+            for (const { screenId: rootId, groupId } of roots) {
+                const group = groups[groupId];
+                const groupScreens = new Set(group.screens || []);
+                const queue = [{ id: rootId, depth: 0 }];
+                const visited = new Set();
+
+                while (queue.length > 0) {
+                    const { id, depth } = queue.shift();
+                    if (visited.has(id) || !groupScreens.has(id)) continue;
+                    visited.add(id);
+                    screenDepth[id] = depth;
+
+                    const screen = MANIFEST.screens[id];
+                    for (const targetId of (screen?.flows_to || [])) {
+                        if (groupScreens.has(targetId) && !visited.has(targetId)) {
+                            queue.push({ id: targetId, depth: depth + 1 });
+                        }
+                    }
+                }
+
+                // Assign depth 0 to any unvisited screens in group
+                for (const screenId of groupScreens) {
+                    if (screenDepth[screenId] === undefined) {
+                        screenDepth[screenId] = 0;
+                    }
+                }
+            }
+
+            // Group screens by depth level within each group
+            const groupLevels = {};
+            for (const [groupId, group] of Object.entries(groups)) {
+                groupLevels[groupId] = {};
+                for (const screenId of (group.screens || [])) {
+                    const depth = screenDepth[screenId] || 0;
+                    if (!groupLevels[groupId][depth]) groupLevels[groupId][depth] = [];
+                    groupLevels[groupId][depth].push(screenId);
+                }
+            }
+
+            // Layout: Groups as columns, depth as rows (like an org chart)
+            // Each group gets a column, screens flow top-to-bottom within
+            const groupOrder = Object.keys(groups);
+            const GROUP_GAP = 100;
+
+            let groupX = 0;
+
+            for (const groupId of groupOrder) {
+                const group = groups[groupId];
+                const levels = groupLevels[groupId];
+                const maxDepth = Math.max(...Object.keys(levels).map(Number), 0);
+
+                // Find max width needed for this group (widest level)
+                let maxLevelWidth = 0;
+                for (const [depth, screens] of Object.entries(levels)) {
+                    maxLevelWidth = Math.max(maxLevelWidth, screens.length);
+                }
+
+                const groupWidth = Math.max(maxLevelWidth, 1) * (SCREEN_WIDTH + H_PADDING);
+
+                // Position screens - each depth level is a row
+                for (const [depth, screens] of Object.entries(levels)) {
+                    const levelY = parseInt(depth) * (SCREEN_HEIGHT + V_PADDING);
+                    const levelWidth = screens.length * (SCREEN_WIDTH + H_PADDING) - H_PADDING;
+                    const startX = groupX + (groupWidth - levelWidth) / 2;
+
+                    screens.forEach((screenId, i) => {
+                        screenPositions[screenId] = {
+                            x: startX + i * (SCREEN_WIDTH + H_PADDING),
+                            y: levelY,
+                            width: SCREEN_WIDTH,
+                            height: SCREEN_HEIGHT,
+                            color: group.color
+                        };
+                    });
+                }
+
+                groupX += groupWidth + GROUP_GAP;
+            }
+        }
+
+        function renderMapScreens() {
+            const canvas = document.getElementById('mapCanvas');
+            const captures = INDEX.captures || [];
+            const currentCapture = captures[mapTimelineIdx];
+            const captureId = currentCapture ? currentCapture.id : selectedCapture;
+
+            for (const [screenId, screen] of Object.entries(MANIFEST.screens)) {
+                const pos = screenPositions[screenId];
+                if (!pos) continue;
+
+                const div = document.createElement('div');
+                div.className = 'map-screen';
+                div.id = `map-screen-${screenId}`;
+                div.dataset.screenId = screenId;
+                div.dataset.groupColor = pos.color;
+                div.style.cssText = `left:${pos.x}px; top:${pos.y}px; width:${pos.width}px; border-color:${pos.color}`;
+                div.onclick = () => openModal(screenId, captureId);
+                div.innerHTML = `
+                    <img src="${CAPTURES_DIR}/${captureId}/${screenId}.png"
+                         data-screen-id="${screenId}"
+                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22280%22 height=%22560%22><rect fill=%22%23161b22%22 width=%22280%22 height=%22560%22/><text x=%22140%22 y=%22280%22 fill=%22%238b949e%22 text-anchor=%22middle%22 font-family=%22system-ui%22 font-size=%2214%22>Not captured</text></svg>'">
+                    <div class="screen-label">
+                        <strong>${screen.name}</strong><br>
+                        <span style="opacity: 0.7">${screenId}</span>
+                    </div>
+                `;
+                canvas.appendChild(div);
+            }
+        }
+
+        function renderMapConnections() {
+            const svg = document.getElementById('mapConnections');
+            let maxX = 0, maxY = 0;
+
+            for (const pos of Object.values(screenPositions)) {
+                maxX = Math.max(maxX, pos.x + pos.width);
+                maxY = Math.max(maxY, pos.y + pos.height);
+            }
+            svg.setAttribute('width', maxX + 400);
+            svg.setAttribute('height', maxY + 400);
+
+            // Build connection map to detect bi-directional flows
+            const flowMap = {};
+            for (const [screenId, screen] of Object.entries(MANIFEST.screens)) {
+                if (!screen.flows_to) continue;
+                for (const targetId of screen.flows_to) {
+                    const key = [screenId, targetId].sort().join('::');
+                    if (!flowMap[key]) {
+                        flowMap[key] = { screens: [screenId, targetId].sort(), directions: [] };
+                    }
+                    flowMap[key].directions.push({ from: screenId, to: targetId });
+                }
+            }
+
+            // Collect unique connections (bi-directional merged)
+            const connections = [];
+            const processed = new Set();
+
+            for (const [key, flow] of Object.entries(flowMap)) {
+                if (processed.has(key)) continue;
+                processed.add(key);
+
+                const [screenA, screenB] = flow.screens;
+                const posA = screenPositions[screenA];
+                const posB = screenPositions[screenB];
+                if (!posA || !posB) continue;
+
+                const isBidirectional = flow.directions.length === 2;
+
+                // Always draw from the higher screen to the lower screen
+                const aIsHigher = posA.y < posB.y || (posA.y === posB.y && posA.x < posB.x);
+                const fromScreen = aIsHigher ? screenA : screenB;
+                const toScreen = aIsHigher ? screenB : screenA;
+                const fromPos = aIsHigher ? posA : posB;
+                const toPos = aIsHigher ? posB : posA;
+
+                connections.push({
+                    from: fromScreen,
+                    to: toScreen,
+                    fromPos,
+                    toPos,
+                    bidirectional: isBidirectional
+                });
+            }
+
+            // Sort so longer connections draw first (behind shorter ones)
+            connections.sort((a, b) => {
+                const distA = Math.abs(a.toPos.x - a.fromPos.x) + Math.abs(a.toPos.y - a.fromPos.y);
+                const distB = Math.abs(b.toPos.x - b.fromPos.x) + Math.abs(b.toPos.y - b.fromPos.y);
+                return distB - distA;
+            });
+
+            // Draw connections
+            connections.forEach(({ from: screenId, to: targetId, fromPos, toPos, bidirectional }) => {
+                // Exit from bottom center of source
+                const fromX = fromPos.x + fromPos.width / 2;
+                const fromY = fromPos.y + fromPos.height;
+
+                // Enter at top center of destination
+                const toX = toPos.x + toPos.width / 2;
+                const toY = toPos.y;
+
+                const dx = toX - fromX;
+                const dy = toY - fromY;
+
+                const dropDistance = 50;
+                const approachDistance = 40;
+
+                let pathD;
+
+                if (Math.abs(dx) < 50 && dy > 100) {
+                    // Nearly vertical, target below - simple S curve
+                    pathD = `M ${fromX} ${fromY}
+                             C ${fromX} ${fromY + dy * 0.5},
+                               ${toX} ${toY - dy * 0.5},
+                               ${toX} ${toY}`;
+                } else {
+                    // Horizontal distance - smooth curve
+                    const midY = Math.max(fromY + dropDistance, toY - approachDistance);
+
+                    pathD = `M ${fromX} ${fromY}
+                             L ${fromX} ${fromY + dropDistance}
+                             C ${fromX} ${midY},
+                               ${toX} ${midY},
+                               ${toX} ${toY - approachDistance}
+                             L ${toX} ${toY}`;
+                }
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', pathD);
+                path.setAttribute('class', 'connection' + (bidirectional ? ' bidirectional' : ''));
+                path.dataset.from = screenId;
+                path.dataset.to = targetId;
+                svg.appendChild(path);
+
+                // Arrow at destination (pointing down into target)
+                const arrowDown = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                arrowDown.setAttribute('points', `${toX},${toY} ${toX-7},${toY-14} ${toX+7},${toY-14}`);
+                arrowDown.setAttribute('class', 'connection-arrow');
+                arrowDown.dataset.from = screenId;
+                arrowDown.dataset.to = targetId;
+                svg.appendChild(arrowDown);
+
+                // If bidirectional, add arrow at source too (pointing up out of source)
+                if (bidirectional) {
+                    const arrowUp = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    arrowUp.setAttribute('points', `${fromX},${fromY} ${fromX-7},${fromY+14} ${fromX+7},${fromY+14}`);
+                    arrowUp.setAttribute('class', 'connection-arrow');
+                    arrowUp.dataset.from = targetId;
+                    arrowUp.dataset.to = screenId;
+                    svg.appendChild(arrowUp);
+                }
+            });
+        }
+
+        function setupMapControls() {
+            const container = document.getElementById('mapContainer');
+
+            container.addEventListener('mousedown', (e) => {
+                if (e.target.closest('.map-screen')) return;
+                isDragging = true;
+                dragStartX = e.clientX - mapTranslateX;
+                dragStartY = e.clientY - mapTranslateY;
+            });
+
+            container.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                mapTranslateX = e.clientX - dragStartX;
+                mapTranslateY = e.clientY - dragStartY;
+                updateMapTransform();
+            });
+
+            container.addEventListener('mouseup', () => isDragging = false);
+            container.addEventListener('mouseleave', () => isDragging = false);
+
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                mapScale *= e.deltaY > 0 ? 0.9 : 1.1;
+                mapScale = Math.max(0.1, Math.min(2, mapScale));
+                updateMapTransform();
+            });
+        }
+
+        function updateMapTransform() {
+            const canvas = document.getElementById('mapCanvas');
+            if (canvas) {
+                canvas.style.transform = `translate(${mapTranslateX}px, ${mapTranslateY}px) scale(${mapScale})`;
+            }
+        }
+
+        // Map Timeline Functions
+        function mapRewind() {
+            mapTimelineIdx = 0;
+            updateMapTimeline();
+        }
+
+        function mapTogglePlay() {
+            mapIsPlaying = !mapIsPlaying;
+            const btn = document.getElementById('mapPlayBtn');
+            if (btn) {
+                btn.innerHTML = mapIsPlaying ? '⏸ Pause' : '▶ Play';
+                btn.classList.toggle('active', mapIsPlaying);
+            }
+            if (mapIsPlaying) {
+                mapPlayLoop();
+            } else if (mapPlaybackTimer) {
+                clearTimeout(mapPlaybackTimer);
+                mapPlaybackTimer = null;
+            }
+        }
+
+        function mapPlayLoop() {
+            if (!mapIsPlaying) return;
+            const captures = INDEX.captures || [];
+            if (mapTimelineIdx < captures.length - 1) {
+                mapTimelineIdx++;
+                updateMapTimeline();
+                mapPlaybackTimer = setTimeout(mapPlayLoop, mapPlaybackSpeed);
+            } else {
+                // Reached end
+                mapIsPlaying = false;
+                const btn = document.getElementById('mapPlayBtn');
+                if (btn) {
+                    btn.innerHTML = '▶ Play';
+                    btn.classList.remove('active');
+                }
+            }
+        }
+
+        function mapStep() {
+            const captures = INDEX.captures || [];
+            if (mapTimelineIdx < captures.length - 1) {
+                mapTimelineIdx++;
+                updateMapTimeline();
+            }
+        }
+
+        function mapJumpTo(idx) {
+            mapTimelineIdx = idx;
+            updateMapTimeline();
+        }
+
+        function mapSetSpeed(ms) {
+            mapPlaybackSpeed = parseInt(ms);
+        }
+
+        function mapTrackClick(event) {
+            const track = document.getElementById('mapTrack');
+            const rect = track.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const percent = clickX / rect.width;
+            const captures = INDEX.captures || [];
+            mapTimelineIdx = Math.round(percent * (captures.length - 1));
+            updateMapTimeline();
+        }
+
+        function updateMapTimeline() {
+            const captures = INDEX.captures || [];
+            if (captures.length === 0) return;
+
+            const currentCapture = captures[mapTimelineIdx];
+            const prevCapture = mapTimelineIdx > 0 ? captures[mapTimelineIdx - 1] : null;
+
+            // Update progress bar
+            const progress = document.getElementById('mapProgress');
+            if (progress) {
+                const percent = captures.length > 1 ? (mapTimelineIdx / (captures.length - 1)) * 100 : 100;
+                progress.style.width = `${percent}%`;
+            }
+
+            // Update markers
+            document.querySelectorAll('.timeline-marker').forEach((marker, i) => {
+                marker.classList.toggle('active', i === mapTimelineIdx);
+            });
+
+            // Update info text
+            const dateEl = document.getElementById('mapTimelineDate');
+            const commitEl = document.getElementById('mapTimelineCommit');
+            const changesEl = document.getElementById('mapTimelineChanges');
+
+            if (dateEl) dateEl.textContent = new Date(currentCapture.timestamp).toLocaleDateString() + ' ' + new Date(currentCapture.timestamp).toLocaleTimeString();
+            if (commitEl) commitEl.textContent = currentCapture.commit;
+
+            // Update screenshot images
+            document.querySelectorAll('.map-screen img[data-screen-id]').forEach(img => {
+                const screenId = img.dataset.screenId;
+                img.src = `${CAPTURES_DIR}/${currentCapture.id}/${screenId}.png`;
+            });
+
+            // Determine changed screens (compare to previous capture)
+            const changedScreens = new Set();
+            const newScreens = new Set();
+
+            if (prevCapture) {
+                // Check which screens are new or changed
+                // For now, we'll check based on capture metadata if available
+                // Otherwise, we assume screens in current that weren't in previous are "new"
+                const prevScreenCount = prevCapture.screenCount || 0;
+                const currScreenCount = currentCapture.screenCount || 0;
+
+                // Simple heuristic: if a capture has fewer screens than manifest, mark extras as new
+                if (currentCapture.mode === 'smart' || currentCapture.mode === 'specific') {
+                    // Smart captures only contain changed screens
+                    Object.keys(MANIFEST.screens).forEach(screenId => {
+                        // We'd need to check if screen exists in this capture
+                        // For now, mark all as potentially changed if it's a smart capture
+                        changedScreens.add(screenId);
+                    });
+                }
+            }
+
+            // Apply visual states to map screens
+            let changeCount = 0;
+            document.querySelectorAll('.map-screen').forEach(screenDiv => {
+                const screenId = screenDiv.dataset.screenId;
+                const groupColor = screenDiv.dataset.groupColor;
+
+                screenDiv.classList.remove('faded', 'changed', 'new-screen');
+
+                if (mapTimelineIdx === 0 || showAllScreens) {
+                    // First capture or show all mode - show all normally
+                    screenDiv.style.borderColor = groupColor;
+                    // Still track changes for the count
+                    if (newScreens.has(screenId)) changeCount++;
+                    else if (changedScreens.has(screenId)) changeCount++;
+                } else if (newScreens.has(screenId)) {
+                    screenDiv.classList.add('new-screen');
+                    changeCount++;
+                } else if (changedScreens.has(screenId)) {
+                    screenDiv.classList.add('changed');
+                    changeCount++;
+                } else {
+                    // Unchanged - fade it
+                    screenDiv.classList.add('faded');
+                    screenDiv.style.borderColor = groupColor;
+                }
+            });
+
+            if (changesEl) {
+                if (mapTimelineIdx === 0) {
+                    changesEl.textContent = 'Baseline capture';
+                } else if (changeCount > 0) {
+                    changesEl.textContent = `${changeCount} screen${changeCount === 1 ? '' : 's'} changed`;
+                } else {
+                    changesEl.textContent = '';
+                }
+            }
+        }
+
+        function openModal(screenId, captureId = selectedCapture) {
+            const screen = MANIFEST.screens[screenId];
+            if (!screen) return;
+
+            document.getElementById('modalImg').src = `${CAPTURES_DIR}/${captureId}/${screenId}.png`;
+            document.getElementById('modalTitle').textContent = screen.name;
+            document.getElementById('modalId').textContent = screenId;
+
+            const flowsHtml = (screen.flows_to || [])
+                .map(id => `<li><a href="#" onclick="openModal('${id}'); return false;">${MANIFEST.screens[id]?.name || id}</a></li>`)
+                .join('') || '<li>None</li>';
+            document.getElementById('modalFlows').innerHTML = flowsHtml;
+
+            const sourcesHtml = (screen.sources || [])
+                .map(s => `<li>${s.split('/').pop()}</li>`)
+                .join('') || '<li>None</li>';
+            document.getElementById('modalSources').innerHTML = sourcesHtml;
+
+            // Render mini-map
+            renderMiniMap(screenId, captureId);
+
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function renderMiniMap(screenId, captureId) {
+            const canvas = document.getElementById('miniMapCanvas');
+            const svg = document.getElementById('miniMapSvg');
+            const screen = MANIFEST.screens[screenId];
+
+            // Clear previous content (except SVG)
+            canvas.querySelectorAll('.mini-screen').forEach(el => el.remove());
+            svg.innerHTML = '';
+
+            // Find incoming and outgoing connections
+            const outgoing = screen.flows_to || [];
+            const incoming = [];
+
+            for (const [otherId, otherScreen] of Object.entries(MANIFEST.screens)) {
+                if (otherId !== screenId && (otherScreen.flows_to || []).includes(screenId)) {
+                    incoming.push(otherId);
+                }
+            }
+
+            // Determine bidirectional
+            const bidirectional = outgoing.filter(id => incoming.includes(id));
+            const outgoingOnly = outgoing.filter(id => !bidirectional.includes(id));
+            const incomingOnly = incoming.filter(id => !bidirectional.includes(id));
+
+            // Layout: current screen in center, incoming on left, outgoing on right, bidirectional on top/bottom
+            const centerX = 220;
+            const centerY = 200;
+            const currentWidth = 100;
+            const currentHeight = 170;
+            const miniWidth = 70;
+            const miniHeight = 120;
+            const spacing = 80;
+
+            // Add current screen (center)
+            const currentDiv = document.createElement('div');
+            currentDiv.className = 'mini-screen current';
+            currentDiv.style.left = `${centerX - currentWidth / 2}px`;
+            currentDiv.style.top = `${centerY - currentHeight / 2}px`;
+            currentDiv.innerHTML = `<img src="${CAPTURES_DIR}/${captureId}/${screenId}.png" style="width:100%;height:100%;object-fit:cover;border-radius:2px;" onerror="this.style.display='none'">`;
+            canvas.appendChild(currentDiv);
+
+            const positions = {};
+
+            // Helper to add hover handlers
+            function addHoverHandlers(div, id) {
+                div.addEventListener('mouseenter', () => {
+                    canvas.classList.add('has-hover');
+                    div.classList.add('hover-target');
+                    // Highlight the connection for this screen
+                    svg.querySelectorAll(`.mini-connection[data-screen="${id}"]`).forEach(conn => {
+                        conn.classList.add('hover-active');
+                    });
+                });
+                div.addEventListener('mouseleave', () => {
+                    canvas.classList.remove('has-hover');
+                    div.classList.remove('hover-target');
+                    svg.querySelectorAll('.mini-connection.hover-active').forEach(conn => {
+                        conn.classList.remove('hover-active');
+                    });
+                });
+            }
+
+            // Position incoming screens on the left
+            incomingOnly.forEach((id, i) => {
+                const total = incomingOnly.length;
+                const startY = centerY - ((total - 1) * (miniHeight + 15)) / 2;
+                const x = 30;
+                const y = startY + i * (miniHeight + 15) - miniHeight / 2;
+                positions[id] = { x: x + miniWidth / 2, y: y + miniHeight / 2, type: 'incoming' };
+
+                const div = document.createElement('div');
+                div.className = 'mini-screen incoming';
+                div.style.left = `${x}px`;
+                div.style.top = `${y}px`;
+                div.onclick = () => openModal(id, captureId);
+                div.title = MANIFEST.screens[id]?.name || id;
+                div.innerHTML = `<img src="${CAPTURES_DIR}/${captureId}/${id}.png" style="width:100%;height:100%;object-fit:cover;border-radius:4px;" onerror="this.style.display='none'">`;
+                addHoverHandlers(div, id);
+                canvas.appendChild(div);
+            });
+
+            // Position outgoing screens on the right
+            outgoingOnly.forEach((id, i) => {
+                const total = outgoingOnly.length;
+                const startY = centerY - ((total - 1) * (miniHeight + 15)) / 2;
+                const x = 340;
+                const y = startY + i * (miniHeight + 15) - miniHeight / 2;
+                positions[id] = { x: x + miniWidth / 2, y: y + miniHeight / 2, type: 'outgoing' };
+
+                const div = document.createElement('div');
+                div.className = 'mini-screen outgoing';
+                div.style.left = `${x}px`;
+                div.style.top = `${y}px`;
+                div.onclick = () => openModal(id, captureId);
+                div.title = MANIFEST.screens[id]?.name || id;
+                div.innerHTML = `<img src="${CAPTURES_DIR}/${captureId}/${id}.png" style="width:100%;height:100%;object-fit:cover;border-radius:4px;" onerror="this.style.display='none'">`;
+                addHoverHandlers(div, id);
+                canvas.appendChild(div);
+            });
+
+            // Position bidirectional screens on top and bottom
+            bidirectional.forEach((id, i) => {
+                const isTop = i % 2 === 0;
+                const col = Math.floor(i / 2);
+                const x = centerX + (col - Math.floor(bidirectional.length / 4)) * (miniWidth + 20) - miniWidth / 2;
+                const y = isTop ? 20 : 340;
+                positions[id] = { x: x + miniWidth / 2, y: y + miniHeight / 2, type: 'bidirectional' };
+
+                const div = document.createElement('div');
+                div.className = 'mini-screen bidirectional';
+                div.style.left = `${x}px`;
+                div.style.top = `${y}px`;
+                div.onclick = () => openModal(id, captureId);
+                div.title = MANIFEST.screens[id]?.name || id;
+                div.innerHTML = `<img src="${CAPTURES_DIR}/${captureId}/${id}.png" style="width:100%;height:100%;object-fit:cover;border-radius:4px;" onerror="this.style.display='none'">`;
+                addHoverHandlers(div, id);
+                canvas.appendChild(div);
+            });
+
+            // Draw connections
+            svg.setAttribute('width', '100%');
+            svg.setAttribute('height', '100%');
+
+            for (const [id, pos] of Object.entries(positions)) {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                let d;
+
+                if (pos.type === 'incoming') {
+                    // Curve from left screen to center
+                    const startX = pos.x + miniWidth/2;
+                    const startY = pos.y;
+                    const endX = centerX - currentWidth/2;
+                    const endY = centerY;
+                    const ctrlX = (startX + endX) / 2;
+                    d = `M ${startX} ${startY} C ${ctrlX} ${startY}, ${ctrlX} ${endY}, ${endX} ${endY}`;
+                } else if (pos.type === 'outgoing') {
+                    // Curve from center to right screen
+                    const startX = centerX + currentWidth/2;
+                    const startY = centerY;
+                    const endX = pos.x - miniWidth/2;
+                    const endY = pos.y;
+                    const ctrlX = (startX + endX) / 2;
+                    d = `M ${startX} ${startY} C ${ctrlX} ${startY}, ${ctrlX} ${endY}, ${endX} ${endY}`;
+                } else {
+                    // Bidirectional - vertical curve
+                    const isTop = pos.y < centerY;
+                    if (isTop) {
+                        const startY = pos.y + miniHeight/2;
+                        const endY = centerY - currentHeight/2;
+                        const midY = (startY + endY) / 2;
+                        d = `M ${pos.x} ${startY} C ${pos.x} ${midY}, ${centerX} ${midY}, ${centerX} ${endY}`;
+                    } else {
+                        const startY = centerY + currentHeight/2;
+                        const endY = pos.y - miniHeight/2;
+                        const midY = (startY + endY) / 2;
+                        d = `M ${centerX} ${startY} C ${centerX} ${midY}, ${pos.x} ${midY}, ${pos.x} ${endY}`;
+                    }
+                }
+
+                path.setAttribute('d', d);
+                path.setAttribute('class', `mini-connection ${pos.type}`);
+                path.setAttribute('data-screen', id);
+                svg.appendChild(path);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        init();
+    </script>
+</body>
+</html>

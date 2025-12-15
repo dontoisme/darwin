@@ -1,0 +1,717 @@
+#!/bin/bash
+#
+# darwin-map
+#
+# Generate an interactive visual map of app screens and their flow connections.
+# Uses screenshots and manifest.json to create a navigable HTML canvas.
+#
+# Usage:
+#   darwin map                      # Generate map from baseline
+#   darwin map --source abc1234     # Generate from specific commit
+#   darwin map --output map.html    # Custom output file
+#
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LIB_DIR="$SCRIPT_DIR/../lib"
+
+# Source configuration
+if [ -f "$LIB_DIR/config.sh" ]; then
+    source "$LIB_DIR/config.sh"
+fi
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Defaults
+SOURCE_DIR="baseline"
+OUTPUT_FILE=""
+THUMBNAIL_WIDTH=300
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --source|-s)
+            SOURCE_DIR="$2"
+            shift 2
+            ;;
+        --output|-o)
+            OUTPUT_FILE="$2"
+            shift 2
+            ;;
+        --width|-w)
+            THUMBNAIL_WIDTH="$2"
+            shift 2
+            ;;
+        --help|-h)
+            echo "Usage: darwin map [OPTIONS]"
+            echo ""
+            echo "Generate an interactive visual map of app screens and flows."
+            echo ""
+            echo "Options:"
+            echo "  --source, -s DIR    Screenshot directory (default: baseline)"
+            echo "  --output, -o FILE   Output HTML file (default: Screenshots/map.html)"
+            echo "  --width, -w PX      Thumbnail width in pixels (default: 300)"
+            echo "  --help              Show this help"
+            echo ""
+            echo "Examples:"
+            echo "  darwin map                          # Map from baseline"
+            echo "  darwin map --source abc1234         # Map from specific commit"
+            echo "  darwin map --output ~/Desktop/map.html"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}"
+            exit 1
+            ;;
+    esac
+done
+
+# Try to load config
+if load_config 2>/dev/null; then
+    SCREENSHOT_DIR="$CONFIG_OUTPUT_PATH"
+    MANIFEST_FILE="$CONFIG_MANIFEST_PATH"
+else
+    SCREENSHOT_DIR="$(pwd)/Screenshots"
+    MANIFEST_FILE="$(pwd)/Screenshots/manifest.json"
+fi
+
+# Set source path
+SOURCE_PATH="$SCREENSHOT_DIR/$SOURCE_DIR"
+
+# Set output file
+if [ -z "$OUTPUT_FILE" ]; then
+    OUTPUT_FILE="$SCREENSHOT_DIR/map.html"
+fi
+
+echo -e "${BLUE}🧬 Darwin - App Map Generator${NC}"
+echo ""
+
+# Verify manifest exists
+if [ ! -f "$MANIFEST_FILE" ]; then
+    echo -e "${RED}Error: manifest.json not found at $MANIFEST_FILE${NC}"
+    exit 1
+fi
+
+# Verify source directory exists
+if [ ! -d "$SOURCE_PATH" ]; then
+    echo -e "${RED}Error: Screenshot directory not found: $SOURCE_PATH${NC}"
+    echo "Available directories:"
+    ls -1d "$SCREENSHOT_DIR"/*/ 2>/dev/null | xargs -n1 basename
+    exit 1
+fi
+
+echo "Source: $SOURCE_DIR"
+echo "Output: $OUTPUT_FILE"
+echo ""
+
+# Read manifest and generate HTML
+echo -e "${BLUE}Generating interactive map...${NC}"
+
+# Generate the HTML file
+cat > "$OUTPUT_FILE" << 'HTMLHEAD'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darwin - App Map</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --bg-secondary: #161b22;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --border: #30363d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            gap: 20px;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header .meta {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .header .controls {
+            margin-left: auto;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .header button {
+            background: var(--border);
+            border: none;
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .header button:hover {
+            background: var(--text-muted);
+        }
+
+        .zoom-display {
+            color: var(--text-muted);
+            font-size: 14px;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        /* Legend */
+        .legend {
+            position: fixed;
+            top: 76px;
+            left: 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            z-index: 100;
+            font-size: 13px;
+        }
+
+        .legend h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* Canvas */
+        .canvas-container {
+            position: fixed;
+            top: 56px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            cursor: grab;
+        }
+
+        .canvas-container:active {
+            cursor: grabbing;
+        }
+
+        .canvas {
+            position: absolute;
+            transform-origin: 0 0;
+        }
+
+        /* SVG for connections */
+        .connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            overflow: visible;
+        }
+
+        .connection {
+            fill: none;
+            stroke: var(--border);
+            stroke-width: 2;
+            opacity: 0.6;
+        }
+
+        .connection:hover {
+            stroke: var(--text);
+            opacity: 1;
+        }
+
+        .connection-arrow {
+            fill: var(--border);
+        }
+
+        /* Screen cards */
+        .screen {
+            position: absolute;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .screen:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            z-index: 10;
+        }
+
+        .screen img {
+            width: 100%;
+            display: block;
+        }
+
+        .screen-label {
+            padding: 12px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+        }
+
+        .screen-label h3 {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .screen-label .screen-id {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .modal img {
+            max-height: 80vh;
+            object-fit: contain;
+        }
+
+        .modal-info {
+            padding: 24px;
+            min-width: 280px;
+            border-left: 1px solid var(--border);
+        }
+
+        .modal-info h2 {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .modal-info .screen-id {
+            font-family: monospace;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .modal-info h4 {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin: 16px 0 8px;
+        }
+
+        .modal-info ul {
+            list-style: none;
+            font-size: 14px;
+        }
+
+        .modal-info li {
+            padding: 4px 0;
+        }
+
+        .modal-info a {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--border);
+            border: none;
+            color: var(--text);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧬 App Map</h1>
+        <span class="meta" id="screenCount"></span>
+        <div class="controls">
+            <button onclick="zoomOut()">−</button>
+            <span class="zoom-display" id="zoomDisplay">100%</span>
+            <button onclick="zoomIn()">+</button>
+            <button onclick="resetView()">Reset</button>
+        </div>
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+    <div class="canvas-container" id="container">
+        <div class="canvas" id="canvas">
+            <svg class="connections" id="connections"></svg>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal" onclick="closeModal(event)">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <div class="modal" onclick="event.stopPropagation()">
+            <img id="modal-img" src="">
+            <div class="modal-info">
+                <h2 id="modal-title"></h2>
+                <div class="screen-id" id="modal-id"></div>
+                <h4>Flows To</h4>
+                <ul id="modal-flows"></ul>
+                <h4>Source Files</h4>
+                <ul id="modal-sources"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data will be injected here
+        const MANIFEST = __MANIFEST_JSON__;
+        const SOURCE_DIR = "__SOURCE_DIR__";
+        const SCREENSHOT_DIR = "__SCREENSHOT_DIR__";
+
+        // Canvas state
+        let scale = 0.6;
+        let translateX = 100;
+        let translateY = 100;
+        let isDragging = false;
+        let startX, startY;
+
+        // Screen dimensions
+        const SCREEN_WIDTH = 300;
+        const SCREEN_HEIGHT = 650;
+        const PADDING = 80;
+
+        // Position cache
+        const positions = {};
+
+        function init() {
+            layoutScreens();
+            renderLegend();
+            renderScreens();
+            renderConnections();
+            updateTransform();
+
+            document.getElementById('screenCount').textContent =
+                `${Object.keys(MANIFEST.screens).length} screens`;
+
+            // Pan/zoom handlers
+            const container = document.getElementById('container');
+            container.addEventListener('mousedown', startDrag);
+            container.addEventListener('mousemove', drag);
+            container.addEventListener('mouseup', endDrag);
+            container.addEventListener('mouseleave', endDrag);
+            container.addEventListener('wheel', handleWheel);
+        }
+
+        function layoutScreens() {
+            const groups = MANIFEST.groups || {};
+            let groupX = 0;
+
+            // Layout by groups
+            for (const [groupId, group] of Object.entries(groups)) {
+                const screens = group.screens || [];
+                const cols = Math.ceil(Math.sqrt(screens.length));
+
+                screens.forEach((screenId, i) => {
+                    const col = i % cols;
+                    const row = Math.floor(i / cols);
+                    positions[screenId] = {
+                        x: groupX + col * (SCREEN_WIDTH + PADDING),
+                        y: row * (SCREEN_HEIGHT + PADDING),
+                        group: groupId,
+                        color: group.color
+                    };
+                });
+
+                groupX += (cols + 1) * (SCREEN_WIDTH + PADDING);
+            }
+
+            // Layout ungrouped screens
+            const groupedScreens = new Set(Object.values(groups).flatMap(g => g.screens || []));
+            let ungroupedIndex = 0;
+            for (const screenId of Object.keys(MANIFEST.screens)) {
+                if (!groupedScreens.has(screenId)) {
+                    positions[screenId] = {
+                        x: groupX + (ungroupedIndex % 3) * (SCREEN_WIDTH + PADDING),
+                        y: Math.floor(ungroupedIndex / 3) * (SCREEN_HEIGHT + PADDING),
+                        color: '#8b949e'
+                    };
+                    ungroupedIndex++;
+                }
+            }
+        }
+
+        function renderLegend() {
+            const legend = document.getElementById('legend');
+            const groups = MANIFEST.groups || {};
+
+            let html = '<h3>Groups</h3>';
+            for (const [id, group] of Object.entries(groups)) {
+                html += `<div class="legend-item">
+                    <div class="legend-color" style="background: ${group.color}"></div>
+                    <span>${group.name} (${(group.screens || []).length})</span>
+                </div>`;
+            }
+            legend.innerHTML = html;
+        }
+
+        function renderScreens() {
+            const canvas = document.getElementById('canvas');
+
+            for (const [screenId, screen] of Object.entries(MANIFEST.screens)) {
+                const pos = positions[screenId];
+                if (!pos) continue;
+
+                const div = document.createElement('div');
+                div.className = 'screen';
+                div.style.left = pos.x + 'px';
+                div.style.top = pos.y + 'px';
+                div.style.width = SCREEN_WIDTH + 'px';
+                div.style.borderColor = pos.color || 'var(--border)';
+                div.onclick = () => openModal(screenId);
+
+                div.innerHTML = `
+                    <img src="${SOURCE_DIR}/${screenId}.png" alt="${screen.name}"
+                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22600%22><rect fill=%22%23161b22%22 width=%22300%22 height=%22600%22/><text x=%22150%22 y=%22300%22 fill=%22%238b949e%22 text-anchor=%22middle%22>No Screenshot</text></svg>'">
+                    <div class="screen-label">
+                        <h3>${screen.name}</h3>
+                        <div class="screen-id">${screenId}</div>
+                    </div>
+                `;
+
+                canvas.appendChild(div);
+            }
+        }
+
+        function renderConnections() {
+            const svg = document.getElementById('connections');
+            const svgNS = "http://www.w3.org/2000/svg";
+
+            // Calculate SVG size
+            let maxX = 0, maxY = 0;
+            for (const pos of Object.values(positions)) {
+                maxX = Math.max(maxX, pos.x + SCREEN_WIDTH);
+                maxY = Math.max(maxY, pos.y + SCREEN_HEIGHT);
+            }
+            svg.setAttribute('width', maxX + 200);
+            svg.setAttribute('height', maxY + 200);
+
+            // Draw connections
+            for (const [screenId, screen] of Object.entries(MANIFEST.screens)) {
+                const fromPos = positions[screenId];
+                if (!fromPos || !screen.flows_to) continue;
+
+                for (const targetId of screen.flows_to) {
+                    const toPos = positions[targetId];
+                    if (!toPos) continue;
+
+                    // Calculate connection points
+                    const fromX = fromPos.x + SCREEN_WIDTH / 2;
+                    const fromY = fromPos.y + SCREEN_HEIGHT;
+                    const toX = toPos.x + SCREEN_WIDTH / 2;
+                    const toY = toPos.y;
+
+                    // Create curved path
+                    const midY = (fromY + toY) / 2;
+                    const path = document.createElementNS(svgNS, 'path');
+                    path.setAttribute('d', `M ${fromX} ${fromY} C ${fromX} ${midY}, ${toX} ${midY}, ${toX} ${toY}`);
+                    path.setAttribute('class', 'connection');
+                    svg.appendChild(path);
+
+                    // Arrow head
+                    const arrow = document.createElementNS(svgNS, 'polygon');
+                    arrow.setAttribute('points', `${toX},${toY} ${toX-6},${toY-12} ${toX+6},${toY-12}`);
+                    arrow.setAttribute('class', 'connection-arrow');
+                    svg.appendChild(arrow);
+                }
+            }
+        }
+
+        function openModal(screenId) {
+            const screen = MANIFEST.screens[screenId];
+            if (!screen) return;
+
+            document.getElementById('modal-img').src = `${SOURCE_DIR}/${screenId}.png`;
+            document.getElementById('modal-title').textContent = screen.name;
+            document.getElementById('modal-id').textContent = screenId;
+
+            // Flows
+            const flowsHtml = (screen.flows_to || [])
+                .map(id => `<li><a href="#" onclick="closeModal(); setTimeout(() => openModal('${id}'), 100); return false;">${MANIFEST.screens[id]?.name || id}</a></li>`)
+                .join('') || '<li>None</li>';
+            document.getElementById('modal-flows').innerHTML = flowsHtml;
+
+            // Sources
+            const sourcesHtml = (screen.sources || [])
+                .map(s => `<li>${s.split('/').pop()}</li>`)
+                .join('') || '<li>None</li>';
+            document.getElementById('modal-sources').innerHTML = sourcesHtml;
+
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function closeModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        // Pan and zoom
+        function startDrag(e) {
+            if (e.target.closest('.screen')) return;
+            isDragging = true;
+            startX = e.clientX - translateX;
+            startY = e.clientY - translateY;
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            translateX = e.clientX - startX;
+            translateY = e.clientY - startY;
+            updateTransform();
+        }
+
+        function endDrag() {
+            isDragging = false;
+        }
+
+        function handleWheel(e) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            scale = Math.max(0.1, Math.min(2, scale * delta));
+            updateTransform();
+        }
+
+        function zoomIn() {
+            scale = Math.min(2, scale * 1.2);
+            updateTransform();
+        }
+
+        function zoomOut() {
+            scale = Math.max(0.1, scale / 1.2);
+            updateTransform();
+        }
+
+        function resetView() {
+            scale = 0.6;
+            translateX = 100;
+            translateY = 100;
+            updateTransform();
+        }
+
+        function updateTransform() {
+            const canvas = document.getElementById('canvas');
+            canvas.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            document.getElementById('zoomDisplay').textContent = Math.round(scale * 100) + '%';
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+            if (e.key === '+' || e.key === '=') zoomIn();
+            if (e.key === '-') zoomOut();
+            if (e.key === '0') resetView();
+        });
+
+        init();
+    </script>
+</body>
+</html>
+HTMLHEAD
+
+# Now inject the manifest data
+MANIFEST_JSON=$(cat "$MANIFEST_FILE")
+
+# Use perl for more reliable substitution with special characters
+perl -i -pe "s|__MANIFEST_JSON__|$MANIFEST_JSON|g" "$OUTPUT_FILE" 2>/dev/null || \
+    sed -i '' "s|__MANIFEST_JSON__|$(echo "$MANIFEST_JSON" | tr '\n' ' ' | sed 's/"/\\"/g')|g" "$OUTPUT_FILE"
+
+# Replace source directory (relative path for the HTML)
+sed -i '' "s|__SOURCE_DIR__|$SOURCE_DIR|g" "$OUTPUT_FILE"
+sed -i '' "s|__SCREENSHOT_DIR__|$SCREENSHOT_DIR|g" "$OUTPUT_FILE"
+
+echo ""
+echo -e "${GREEN}=== App Map Generated ===${NC}"
+echo ""
+echo "Output: $OUTPUT_FILE"
+echo ""
+echo "Open with: open \"$OUTPUT_FILE\""
+echo ""
+echo -e "${GREEN}🧬 Done${NC}"

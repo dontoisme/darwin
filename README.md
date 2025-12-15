@@ -2,15 +2,16 @@
 
 **Watch your iOS app evolve.** Git-aware visual regression testing and development timelapse for iOS.
 
-Darwin helps you track UI changes across commits by intelligently capturing only the screens affected by your code changes, generating pixel-level diff reports, and building a visual history of your app's evolution.
+Darwin tracks UI changes across commits by intelligently capturing only screens affected by your code changes, generating pixel-level diff reports, and building a visual timeline of your app's evolution.
 
 ## Features
 
-- **Smart capture**: Only screenshot screens affected by changed source files
-- **Pixel-level diff**: ImageMagick-powered comparison with HTML reports
-- **Git-aware**: Organized by commit, tracks source file → screen mapping
-- **Manifest-based**: Declarative mapping of screens to source files
-- **CI-ready**: Works with any CI system, generates HTML reports
+- **Smart capture** — Only screenshot screens affected by changed source files
+- **Visual timeline** — Interactive viewer with timelapse playback and app flow map
+- **Pixel-level diff** — ImageMagick-powered comparison with HTML reports
+- **Git-aware** — Organized by commit, tracks source file → screen mapping
+- **Git hooks** — Auto-capture or prompt after commits with Swift changes
+- **CI-ready** — Works with any CI system, generates HTML reports
 
 ## Quick Start
 
@@ -31,11 +32,40 @@ darwin init
 darwin capture --baseline
 
 # Make changes, then capture again
-darwin capture --smart
+darwin capture
 
-# Compare the changes
-darwin diff baseline HEAD --html
-open Screenshots/diff/report.html
+# Open the visual timeline
+darwin viewer
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `darwin init` | Initialize Darwin in your project |
+| `darwin capture` | Smart capture (only changed screens) |
+| `darwin capture --baseline` | Capture all screens (first run) |
+| `darwin diff` | Compare screenshots between captures |
+| `darwin viewer` | Open interactive timeline viewer |
+| `darwin status` | Show current state and pending changes |
+| `darwin hook install` | Install git hook for auto-capture |
+
+### darwin viewer
+
+The unified viewer provides four modes:
+- **Single** — Browse any capture
+- **Compare** — Side-by-side diff between captures
+- **Timelapse** — Scrub through your timeline, see changes highlighted
+- **Map** — Visual app flow with screen connections
+
+### darwin hook
+
+Integrate Darwin into your git workflow:
+
+```bash
+darwin hook install          # Prompt after commits with Swift changes
+darwin hook install --auto   # Auto-capture after commits
+darwin hook status           # Check if hook is installed
 ```
 
 ## How It Works
@@ -43,42 +73,8 @@ open Screenshots/diff/report.html
 1. **Manifest** (`Screenshots/manifest.json`) maps source files to screens
 2. **Git diff** detects which Swift files changed since last capture
 3. **Smart capture** runs only the XCUITests for affected screens
-4. **ImageMagick** generates pixel-level diff images
-5. **HTML report** shows before/after/diff side-by-side
-
-## Commands
-
-### `darwin init`
-
-Initialize Darwin in your iOS project. Creates `darwin.json` config and `Screenshots/manifest.json`.
-
-```bash
-darwin init                              # Interactive setup
-darwin init --project MyApp.xcodeproj    # Non-interactive
-darwin init --with-templates             # Copy Swift helper files
-```
-
-### `darwin capture`
-
-Capture screenshots from your app.
-
-```bash
-darwin capture                    # Smart capture (changed screens only)
-darwin capture --baseline         # Capture ALL screens (first run)
-darwin capture --all              # Force capture all screens
-darwin capture --dry-run          # Show what would be captured
-darwin capture --screens 01,02    # Capture specific screens
-```
-
-### `darwin diff`
-
-Compare screenshots between commits.
-
-```bash
-darwin diff                           # Compare baseline vs latest
-darwin diff abc1234 def5678           # Compare two commits
-darwin diff baseline HEAD --html      # Generate HTML report
-```
+4. **Timeline** tracks all captures with commit info
+5. **Viewer** lets you explore your app's visual evolution
 
 ## Configuration
 
@@ -98,7 +94,7 @@ Darwin uses `darwin.json` in your project root:
 
 ## Manifest Format
 
-The manifest maps screens to source files:
+The manifest maps screens to source files and defines app flow:
 
 ```json
 {
@@ -106,25 +102,26 @@ The manifest maps screens to source files:
   "screens": {
     "01-home": {
       "name": "Home",
-      "description": "Main home screen",
       "test": "testScreenshot_01_Home",
-      "sources": [
-        "Sources/Views/HomeView.swift",
-        "Sources/ViewModels/HomeViewModel.swift"
-      ]
+      "sources": ["Sources/Views/HomeView.swift"],
+      "flows_to": ["02-settings", "03-profile"]
+    }
+  },
+  "groups": {
+    "main": {
+      "name": "Main",
+      "color": "#58a6ff",
+      "screens": ["01-home", "02-settings"]
     }
   }
 }
 ```
 
-When any file in `sources` changes, that screen will be recaptured on the next `darwin capture --smart`.
-
 ## XCUITest Setup
 
-Add the screenshot helper to your UI test target:
+Add screenshot tests to your UI test target:
 
 ```swift
-// In your test file
 import XCTest
 
 class ScreenshotTests: XCTestCase {
@@ -137,7 +134,6 @@ class ScreenshotTests: XCTestCase {
     }
 
     func testScreenshot_01_Home() {
-        // Navigate to home if needed
         takeScreenshot("01-home")
     }
 
@@ -159,16 +155,12 @@ Copy `templates/XCUIApplication+Screenshots.swift` to your UI test target for th
 
 ## Use Cases
 
-- **Visual regression testing**: Catch unintended UI changes before they ship
-- **Design review**: Generate visual diffs for PR reviews
-- **AI-assisted development**: Track changes made by AI coding assistants
-- **Documentation**: Build a visual timeline of your app's evolution
-- **Onboarding**: Show new team members how the UI evolved
+- **Visual regression testing** — Catch unintended UI changes before they ship
+- **Design review** — Generate visual diffs for PR reviews
+- **AI-assisted development** — Track changes made by AI coding assistants
+- **Documentation** — Build a visual timeline of your app's evolution
+- **Onboarding** — Show new team members how the UI evolved
 
 ## License
 
 MIT License - see [LICENSE](LICENSE)
-
-## Contributing
-
-Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.

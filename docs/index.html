@@ -28,6 +28,7 @@
             --accent: #58a6ff;
             --accent-green: #3fb950;
             --accent-purple: #a371f7;
+            --accent-yellow: #d29922;
             --border: #30363d;
         }
 
@@ -45,7 +46,7 @@
         }
 
         .container {
-            max-width: 900px;
+            max-width: 960px;
             margin: 0 auto;
             padding: 0 24px;
         }
@@ -75,6 +76,14 @@
             font-size: 24px;
             color: var(--text-muted);
             margin-bottom: 32px;
+        }
+
+        .hero-description {
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .cta-buttons {
@@ -113,6 +122,15 @@
 
         .btn-secondary:hover {
             border-color: var(--text-muted);
+        }
+
+        .btn-demo {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent));
+            color: white;
+        }
+
+        .btn-demo:hover {
+            opacity: 0.9;
         }
 
         /* Install */
@@ -161,6 +179,88 @@
             background: var(--text-muted);
         }
 
+        /* Demo Section */
+        .demo {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .demo h2 {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+
+        .demo p {
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .demo-preview {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-top: 32px;
+        }
+
+        .demo-header {
+            background: var(--border);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .demo-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .demo-dot.red { background: #ff5f57; }
+        .demo-dot.yellow { background: #febc2e; }
+        .demo-dot.green { background: #28c840; }
+
+        .demo-content {
+            padding: 40px;
+            text-align: center;
+        }
+
+        .demo-modes {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .demo-mode {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .demo-mode-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--bg);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .demo-mode-label {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
         /* Features */
         .features {
             padding: 60px 0;
@@ -174,7 +274,7 @@
 
         .feature-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 24px;
         }
 
@@ -276,12 +376,6 @@
             gap: 8px;
         }
 
-        .code-header::before {
-            content: '';
-            display: flex;
-            gap: 6px;
-        }
-
         .code-block pre {
             padding: 20px;
             overflow-x: auto;
@@ -293,6 +387,43 @@
         .code-block .comment { color: var(--text-muted); }
         .code-block .command { color: var(--accent-green); }
         .code-block .flag { color: var(--accent-purple); }
+
+        /* Commands */
+        .commands {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .commands h2 {
+            font-size: 32px;
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .command-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .command {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+        }
+
+        .command code {
+            color: var(--accent-green);
+            font-family: 'SF Mono', Menlo, monospace;
+            font-size: 14px;
+        }
+
+        .command p {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-top: 6px;
+        }
 
         /* Use cases */
         .use-cases {
@@ -357,14 +488,18 @@
             <div class="logo">🧬</div>
             <h1>Darwin</h1>
             <p class="tagline">Watch your iOS app evolve</p>
-            <p style="color: var(--text-muted); margin-bottom: 32px; max-width: 600px; margin-left: auto; margin-right: auto;">
+            <p class="hero-description">
                 Git-aware visual regression testing and development timelapse for iOS.
-                Capture only what changed, diff at the pixel level, track your UI across commits.
+                Capture only what changed, diff at the pixel level, explore your UI timeline.
             </p>
             <div class="cta-buttons">
                 <a href="https://github.com/dontoisme/darwin" class="btn btn-primary">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
                     View on GitHub
+                </a>
+                <a href="demo/" class="btn btn-demo">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    Live Demo
                 </a>
                 <a href="#install" class="btn btn-secondary">Quick Install</a>
             </div>
@@ -377,6 +512,45 @@
                 <button class="copy-btn" onclick="navigator.clipboard.writeText('brew tap dontoisme/darwin && brew install darwin')">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                 </button>
+            </div>
+        </section>
+
+        <section class="demo">
+            <h2>Interactive Viewer</h2>
+            <p>Explore your app's visual history with the unified timeline viewer.</p>
+            <a href="demo/" class="btn btn-demo" style="font-size: 18px; padding: 16px 32px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Open Demo Viewer
+            </a>
+            <div class="demo-preview">
+                <div class="demo-header">
+                    <span class="demo-dot red"></span>
+                    <span class="demo-dot yellow"></span>
+                    <span class="demo-dot green"></span>
+                </div>
+                <div class="demo-content">
+                    <div class="demo-modes">
+                        <div class="demo-mode">
+                            <div class="demo-mode-icon">📱</div>
+                            <span class="demo-mode-label">Single</span>
+                        </div>
+                        <div class="demo-mode">
+                            <div class="demo-mode-icon">⚖️</div>
+                            <span class="demo-mode-label">Compare</span>
+                        </div>
+                        <div class="demo-mode">
+                            <div class="demo-mode-icon">⏱️</div>
+                            <span class="demo-mode-label">Timelapse</span>
+                        </div>
+                        <div class="demo-mode">
+                            <div class="demo-mode-icon">🗺️</div>
+                            <span class="demo-mode-label">Map</span>
+                        </div>
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 14px;">
+                        Browse captures, compare changes, scrub through time, visualize app flow
+                    </p>
+                </div>
             </div>
         </section>
 
@@ -395,13 +569,53 @@
                 </div>
                 <div class="feature">
                     <div class="feature-icon">📊</div>
-                    <h3>Git-Aware</h3>
-                    <p>Organized by commit. Track which source files affect which screens with manifest mapping.</p>
+                    <h3>Visual Timeline</h3>
+                    <p>Interactive viewer with timelapse playback. Watch your app evolve commit-by-commit.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🗺️</div>
+                    <h3>App Flow Map</h3>
+                    <p>Visualize screen connections and navigation paths. See your app's architecture at a glance.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔗</div>
+                    <h3>Git Hooks</h3>
+                    <p>Auto-capture or prompt after commits with Swift changes. Seamless git workflow integration.</p>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">⚡</div>
                     <h3>CI-Ready</h3>
                     <p>Works with any CI system. Generate diff reports for PR reviews automatically.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="commands">
+            <h2>Commands</h2>
+            <div class="command-grid">
+                <div class="command">
+                    <code>darwin init</code>
+                    <p>Initialize in your iOS project</p>
+                </div>
+                <div class="command">
+                    <code>darwin capture</code>
+                    <p>Smart capture changed screens</p>
+                </div>
+                <div class="command">
+                    <code>darwin diff</code>
+                    <p>Compare between captures</p>
+                </div>
+                <div class="command">
+                    <code>darwin viewer</code>
+                    <p>Open interactive timeline</p>
+                </div>
+                <div class="command">
+                    <code>darwin status</code>
+                    <p>Show state and pending changes</p>
+                </div>
+                <div class="command">
+                    <code>darwin hook install</code>
+                    <p>Auto-capture on commits</p>
                 </div>
             </div>
         </section>
@@ -433,8 +647,8 @@
                 <div class="step">
                     <div class="step-number">4</div>
                     <div class="step-content">
-                        <h3>Visual diff shows what changed</h3>
-                        <p>HTML reports with before/after/diff side-by-side comparison</p>
+                        <h3>Explore in the viewer</h3>
+                        <p>Browse captures, compare changes, watch the timelapse, explore the map</p>
                     </div>
                 </div>
             </div>
@@ -450,12 +664,14 @@
 <span class="comment"># Capture baseline screenshots</span>
 <span class="command">darwin capture</span> <span class="flag">--baseline</span>
 
-<span class="comment"># After making changes, smart capture</span>
-<span class="command">darwin capture</span> <span class="flag">--smart</span>
+<span class="comment"># Make changes, then smart capture</span>
+<span class="command">darwin capture</span>
 
-<span class="comment"># Generate visual diff report</span>
-<span class="command">darwin diff</span> <span class="flag">--html</span>
-<span class="command">open</span> Screenshots/diff/report.html</pre>
+<span class="comment"># Open the visual timeline</span>
+<span class="command">darwin viewer</span>
+
+<span class="comment"># Optional: auto-capture on commits</span>
+<span class="command">darwin hook install</span></pre>
             </div>
         </section>
 
@@ -475,7 +691,7 @@
             <p>MIT License · Created by <a href="https://github.com/dontoisme">Don Hogan</a></p>
             <p style="margin-top: 8px;">
                 <a href="https://github.com/dontoisme/darwin">GitHub</a> ·
-                <a href="https://github.com/dontoisme/darwin/blob/main/docs/QUICKSTART.md">Docs</a> ·
+                <a href="https://github.com/dontoisme/darwin#quick-start">Docs</a> ·
                 <a href="https://github.com/dontoisme/darwin/issues">Issues</a>
             </p>
         </div>
