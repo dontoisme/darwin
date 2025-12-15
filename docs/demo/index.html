@@ -628,7 +628,6 @@
         <div class="mode-tabs">
             <button class="mode-tab" data-mode="single">Single</button>
             <button class="mode-tab" data-mode="compare">Compare</button>
-            <button class="mode-tab" data-mode="timelapse">Timelapse</button>
             <button class="mode-tab active" data-mode="map">Map</button>
         </div>
         <div class="map-toolbar" id="mapToolbar">
@@ -815,9 +814,6 @@
                 case 'compare':
                     renderCompareView(main);
                     break;
-                case 'timelapse':
-                    renderTimelapseView(main);
-                    break;
                 case 'map':
                     populateGroupFilters();
                     renderMapView(main);
@@ -830,24 +826,33 @@
             const groups = MANIFEST.groups || {};
 
             container.innerHTML = Object.entries(groups).map(([id, group]) => `
-                <button class="filter-btn active" data-group="${id}" onclick="toggleGroupFilter('${id}')" style="--group-color: ${group.color}">
+                <button class="filter-btn" data-group="${id}" onclick="toggleGroupFilter('${id}')" style="--group-color: ${group.color}">
                     <span class="dot" style="background: ${group.color}"></span>${group.name}
                 </button>
             `).join('');
 
-            // Initialize all groups as active
-            activeGroups = new Set(Object.keys(groups));
+            // Initialize with no groups selected (empty = show all)
+            activeGroups = new Set();
         }
 
         function toggleGroupFilter(groupId) {
-            const btn = document.querySelector(`.filter-btn[data-group="${groupId}"]`);
-            if (activeGroups.has(groupId)) {
-                activeGroups.delete(groupId);
-                btn.classList.remove('active');
+            // New behavior: clicking a group makes it the only selected group
+            // Clicking the selected group deselects it (back to showing all)
+            if (activeGroups.size === 1 && activeGroups.has(groupId)) {
+                // Deselect the only selected group
+                activeGroups.clear();
             } else {
+                // Select only this group
+                activeGroups.clear();
                 activeGroups.add(groupId);
-                btn.classList.add('active');
             }
+
+            // Update button states
+            document.querySelectorAll('.filter-btn[data-group]').forEach(button => {
+                const btnGroupId = button.dataset.group;
+                button.classList.toggle('active', activeGroups.has(btnGroupId));
+            });
+
             applyMapFilters();
         }
 
@@ -1434,8 +1439,25 @@
 
             container.addEventListener('wheel', (e) => {
                 e.preventDefault();
+
+                // Get mouse position relative to container
+                const rect = container.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                // Calculate point in canvas space before zoom
+                const pointX = (mouseX - mapTranslateX) / mapScale;
+                const pointY = (mouseY - mapTranslateY) / mapScale;
+
+                // Update scale
+                const oldScale = mapScale;
                 mapScale *= e.deltaY > 0 ? 0.9 : 1.1;
                 mapScale = Math.max(0.1, Math.min(2, mapScale));
+
+                // Adjust translation to keep the point under the mouse
+                mapTranslateX = mouseX - pointX * mapScale;
+                mapTranslateY = mouseY - pointY * mapScale;
+
                 updateMapTransform();
             });
         }
