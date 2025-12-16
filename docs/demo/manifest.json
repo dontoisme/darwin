@@ -1,6 +1,7 @@
 {
   "version": "1.1",
   "description": "DinoCodex - Dinosaur Encyclopedia Demo App",
+  "changeThreshold": 0.5,
   "screens": {
     "01-discover-home": {
       "name": "Discover Home",

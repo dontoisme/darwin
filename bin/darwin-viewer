@@ -101,6 +101,70 @@ echo ""
 MANIFEST_JSON=$(cat "$MANIFEST_FILE")
 INDEX_JSON=$(cat "$INDEX_FILE")
 
+# Get change threshold from manifest (default 0.5%)
+CHANGE_THRESHOLD=$(echo "$MANIFEST_JSON" | jq -r '.changeThreshold // 0.5')
+
+# Check if ImageMagick is available for change detection
+if command -v compare &> /dev/null; then
+    echo "Computing screen changes with ImageMagick..."
+
+    # Get captures array
+    CAPTURES=$(echo "$INDEX_JSON" | jq -c '.captures[]')
+    CAPTURES_DIR="$SCREENSHOT_DIR/captures"
+
+    # Build change data object
+    CHANGE_DATA="{}"
+    PREV_CAPTURE=""
+
+    while IFS= read -r capture; do
+        CAPTURE_ID=$(echo "$capture" | jq -r '.id')
+
+        if [ -n "$PREV_CAPTURE" ] && [ "$PREV_CAPTURE" != "null" ]; then
+            PREV_ID=$(echo "$PREV_CAPTURE" | jq -r '.id')
+            CAPTURE_CHANGES="{}"
+
+            # Compare each screen in this capture to the previous capture
+            for screen_file in "$CAPTURES_DIR/$CAPTURE_ID"/*.png; do
+                if [ -f "$screen_file" ]; then
+                    SCREEN_NAME=$(basename "$screen_file")
+                    PREV_FILE="$CAPTURES_DIR/$PREV_ID/$SCREEN_NAME"
+
+                    if [ -f "$PREV_FILE" ]; then
+                        # Get image dimensions to calculate total pixels
+                        DIMENSIONS=$(identify -format "%w %h" "$screen_file" 2>/dev/null || echo "0 0")
+                        WIDTH=$(echo "$DIMENSIONS" | cut -d' ' -f1)
+                        HEIGHT=$(echo "$DIMENSIONS" | cut -d' ' -f2)
+                        TOTAL_PIXELS=$((WIDTH * HEIGHT))
+
+                        if [ "$TOTAL_PIXELS" -gt 0 ]; then
+                            # Compare and get changed pixel count
+                            CHANGED_PIXELS=$(compare -metric AE "$PREV_FILE" "$screen_file" /dev/null 2>&1 || true)
+                            # Clean the output (remove any non-numeric characters)
+                            CHANGED_PIXELS=$(echo "$CHANGED_PIXELS" | grep -oE '^[0-9]+' || echo "0")
+
+                            # Calculate percentage
+                            CHANGE_PCT=$(echo "scale=4; $CHANGED_PIXELS * 100 / $TOTAL_PIXELS" | bc)
+                            SCREEN_ID="${SCREEN_NAME%.png}"
+                            CAPTURE_CHANGES=$(echo "$CAPTURE_CHANGES" | jq --arg id "$SCREEN_ID" --arg pct "$CHANGE_PCT" '. + {($id): ($pct | tonumber)}')
+                        fi
+                    fi
+                fi
+            done
+
+            # Add this capture's changes to the change data
+            CHANGE_DATA=$(echo "$CHANGE_DATA" | jq --arg id "$CAPTURE_ID" --argjson changes "$CAPTURE_CHANGES" '. + {($id): $changes}')
+        fi
+
+        PREV_CAPTURE="$capture"
+    done <<< "$CAPTURES"
+
+    # Inject change data into index JSON
+    INDEX_JSON=$(echo "$INDEX_JSON" | jq --argjson changes "$CHANGE_DATA" '. + {changeData: $changes}')
+    echo "Change detection complete."
+else
+    echo -e "${YELLOW}Note: Install ImageMagick for pixel-level change detection${NC}"
+fi
+
 # Generate the unified viewer HTML
 cat > "$OUTPUT_FILE" << 'HTMLDOC'
 <!DOCTYPE html>
@@ -1678,21 +1742,26 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             const newScreens = new Set();
 
             if (prevCapture) {
-                // Check which screens are new or changed
-                // For now, we'll check based on capture metadata if available
-                // Otherwise, we assume screens in current that weren't in previous are "new"
-                const prevScreenCount = prevCapture.screenCount || 0;
-                const currScreenCount = currentCapture.screenCount || 0;
+                // Get change threshold from manifest (default 0.5%)
+                const changeThreshold = MANIFEST.changeThreshold || 0.5;
 
-                // Simple heuristic: if a capture has fewer screens than manifest, mark extras as new
-                if (currentCapture.mode === 'smart' || currentCapture.mode === 'specific') {
-                    // Smart captures only contain changed screens
-                    Object.keys(MANIFEST.screens).forEach(screenId => {
-                        // We'd need to check if screen exists in this capture
-                        // For now, mark all as potentially changed if it's a smart capture
+                // Get change data for this capture (computed by ImageMagick)
+                const captureChangeData = INDEX.changeData?.[currentCapture.id] || {};
+
+                // Check each screen for changes
+                Object.keys(MANIFEST.screens).forEach(screenId => {
+                    const changePct = captureChangeData[screenId];
+
+                    if (changePct !== undefined) {
+                        // We have actual change data - use threshold
+                        if (changePct > changeThreshold) {
+                            changedScreens.add(screenId);
+                        }
+                    } else if (currentCapture.mode === 'smart' || currentCapture.mode === 'specific') {
+                        // Fallback: no change data, but smart mode - assume changed
                         changedScreens.add(screenId);
-                    });
-                }
+                    }
+                });
             }
 
             // Apply visual states to map screens
