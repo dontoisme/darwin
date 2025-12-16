@@ -104,26 +104,61 @@ INDEX_JSON=$(cat "$INDEX_FILE")
 # Get change threshold from manifest (default 0.5%)
 CHANGE_THRESHOLD=$(echo "$MANIFEST_JSON" | jq -r '.changeThreshold // 0.5')
 
-# Check if ImageMagick is available for change detection
+# Get captures array
+CAPTURES=$(echo "$INDEX_JSON" | jq -c '.captures[]')
+CAPTURES_DIR="$SCREENSHOT_DIR/captures"
+
+# Build change data objects
+CHANGE_DATA="{}"
+SOURCE_CHANGES="{}"
+PREV_CAPTURE=""
+
+# Check if we're in a git repo for source change detection
+IN_GIT_REPO=false
+if git rev-parse --is-inside-work-tree &>/dev/null; then
+    IN_GIT_REPO=true
+    echo "Detecting source file changes from git history..."
+fi
+
+# Check if ImageMagick is available for visual change detection
+HAS_IMAGEMAGICK=false
 if command -v compare &> /dev/null; then
-    echo "Computing screen changes with ImageMagick..."
+    HAS_IMAGEMAGICK=true
+    echo "Computing visual changes with ImageMagick..."
+fi
 
-    # Get captures array
-    CAPTURES=$(echo "$INDEX_JSON" | jq -c '.captures[]')
-    CAPTURES_DIR="$SCREENSHOT_DIR/captures"
+while IFS= read -r capture; do
+    CAPTURE_ID=$(echo "$capture" | jq -r '.id')
+    CURRENT_COMMIT=$(echo "$capture" | jq -r '.commitFull // .commit')
 
-    # Build change data object
-    CHANGE_DATA="{}"
-    PREV_CAPTURE=""
+    if [ -n "$PREV_CAPTURE" ] && [ "$PREV_CAPTURE" != "null" ]; then
+        PREV_ID=$(echo "$PREV_CAPTURE" | jq -r '.id')
+        PREV_COMMIT=$(echo "$PREV_CAPTURE" | jq -r '.commitFull // .commit')
+        CAPTURE_CHANGES="{}"
+        CAPTURE_SOURCE_CHANGES="[]"
 
-    while IFS= read -r capture; do
-        CAPTURE_ID=$(echo "$capture" | jq -r '.id')
+        # Get git diff to find changed source files
+        if [ "$IN_GIT_REPO" = true ] && [ -n "$PREV_COMMIT" ] && [ -n "$CURRENT_COMMIT" ]; then
+            CHANGED_FILES=$(git diff --name-only "$PREV_COMMIT".."$CURRENT_COMMIT" 2>/dev/null || echo "")
 
-        if [ -n "$PREV_CAPTURE" ] && [ "$PREV_CAPTURE" != "null" ]; then
-            PREV_ID=$(echo "$PREV_CAPTURE" | jq -r '.id')
-            CAPTURE_CHANGES="{}"
+            if [ -n "$CHANGED_FILES" ]; then
+                # For each screen in manifest, check if any source file changed
+                SCREEN_IDS=$(echo "$MANIFEST_JSON" | jq -r '.screens | keys[]')
+                for SCREEN_ID in $SCREEN_IDS; do
+                    # Get source files for this screen
+                    SOURCES=$(echo "$MANIFEST_JSON" | jq -r ".screens[\"$SCREEN_ID\"].sources // [] | .[]")
+                    for SOURCE in $SOURCES; do
+                        if echo "$CHANGED_FILES" | grep -qF "$SOURCE"; then
+                            CAPTURE_SOURCE_CHANGES=$(echo "$CAPTURE_SOURCE_CHANGES" | jq --arg id "$SCREEN_ID" '. + [$id] | unique')
+                            break
+                        fi
+                    done
+                done
+            fi
+        fi
 
-            # Compare each screen in this capture to the previous capture
+        # Visual comparison with ImageMagick
+        if [ "$HAS_IMAGEMAGICK" = true ]; then
             for screen_file in "$CAPTURES_DIR/$CAPTURE_ID"/*.png; do
                 if [ -f "$screen_file" ]; then
                     SCREEN_NAME=$(basename "$screen_file")
@@ -150,18 +185,21 @@ if command -v compare &> /dev/null; then
                     fi
                 fi
             done
-
-            # Add this capture's changes to the change data
-            CHANGE_DATA=$(echo "$CHANGE_DATA" | jq --arg id "$CAPTURE_ID" --argjson changes "$CAPTURE_CHANGES" '. + {($id): $changes}')
         fi
 
-        PREV_CAPTURE="$capture"
-    done <<< "$CAPTURES"
+        # Add this capture's data
+        CHANGE_DATA=$(echo "$CHANGE_DATA" | jq --arg id "$CAPTURE_ID" --argjson changes "$CAPTURE_CHANGES" '. + {($id): $changes}')
+        SOURCE_CHANGES=$(echo "$SOURCE_CHANGES" | jq --arg id "$CAPTURE_ID" --argjson sources "$CAPTURE_SOURCE_CHANGES" '. + {($id): $sources}')
+    fi
 
-    # Inject change data into index JSON
-    INDEX_JSON=$(echo "$INDEX_JSON" | jq --argjson changes "$CHANGE_DATA" '. + {changeData: $changes}')
-    echo "Change detection complete."
-else
+    PREV_CAPTURE="$capture"
+done <<< "$CAPTURES"
+
+# Inject change data into index JSON
+INDEX_JSON=$(echo "$INDEX_JSON" | jq --argjson changes "$CHANGE_DATA" --argjson sources "$SOURCE_CHANGES" '. + {changeData: $changes, sourceChanges: $sources}')
+echo "Change detection complete."
+
+if [ "$HAS_IMAGEMAGICK" != true ]; then
     echo -e "${YELLOW}Note: Install ImageMagick for pixel-level change detection${NC}"
 fi
 
@@ -1745,20 +1783,30 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
                 // Get change threshold from manifest (default 0.5%)
                 const changeThreshold = MANIFEST.changeThreshold || 0.5;
 
-                // Get change data for this capture (computed by ImageMagick)
+                // Get visual change data (from ImageMagick) and source changes (from git)
                 const captureChangeData = INDEX.changeData?.[currentCapture.id] || {};
+                const captureSourceChanges = INDEX.sourceChanges?.[currentCapture.id] || [];
 
                 // Check each screen for changes
                 Object.keys(MANIFEST.screens).forEach(screenId => {
-                    const changePct = captureChangeData[screenId];
+                    const visualPct = captureChangeData[screenId];
+                    const sourceChanged = captureSourceChanges.includes(screenId);
 
-                    if (changePct !== undefined) {
-                        // We have actual change data - use threshold
-                        if (changePct > changeThreshold) {
-                            changedScreens.add(screenId);
-                        }
-                    } else if (currentCapture.mode === 'smart' || currentCapture.mode === 'specific') {
-                        // Fallback: no change data, but smart mode - assume changed
+                    // A screen is "changed" if:
+                    // 1. Source file changed AND visual change exceeds threshold (confirmed change)
+                    // 2. OR visual change is significant (>threshold) even without source change
+                    //    (could be indirect change from shared components/styles)
+                    if (sourceChanged && visualPct !== undefined && visualPct > changeThreshold) {
+                        // Confirmed change: both source and visual
+                        changedScreens.add(screenId);
+                    } else if (visualPct !== undefined && visualPct > changeThreshold) {
+                        // Visual-only change (indirect/shared component change)
+                        changedScreens.add(screenId);
+                    } else if (sourceChanged && (visualPct === undefined || visualPct <= changeThreshold)) {
+                        // Source changed but no significant visual change
+                        // Could be refactoring or non-visual code change - don't highlight
+                    } else if (!INDEX.changeData && (currentCapture.mode === 'smart' || currentCapture.mode === 'specific')) {
+                        // Fallback: no change data at all, but smart mode - assume changed
                         changedScreens.add(screenId);
                     }
                 });
