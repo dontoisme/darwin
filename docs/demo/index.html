@@ -1004,8 +1004,10 @@
                     <div class="evolution-header">
                         <h4>Screen Evolution</h4>
                         <div class="evolution-controls">
+                            <button id="evoChangesBtn" class="active" onclick="setEvolutionFilter(false)">Changes</button>
+                            <button id="evoAllBtn" onclick="setEvolutionFilter(true)">All</button>
                             <button id="evoPlayBtn" onclick="toggleEvolutionPlay()">▶ Play</button>
-                            <span class="evolution-counter" id="evoCounter">1 / 23</span>
+                            <span class="evolution-counter" id="evoCounter">1 / 5</span>
                         </div>
                     </div>
                     <div class="evolution-filmstrip" id="evolutionFilmstrip">
@@ -1047,6 +1049,7 @@
         let evolutionIdx = 0;
         let evolutionIsPlaying = false;
         let evolutionTimer = null;
+        let evolutionShowAll = false; // Default to changes-only mode
 
         // Map state
         let mapScale = 0.25;
@@ -2116,42 +2119,63 @@
         function renderScreenEvolution(screenId, initialCaptureId) {
             const filmstrip = document.getElementById('evolutionFilmstrip');
             const counter = document.getElementById('evoCounter');
-            const playBtn = document.getElementById('evoPlayBtn');
             const threshold = MANIFEST.changeThreshold || 0.5;
 
             // Stop any playing animation
             stopEvolutionPlay();
 
-            // Get all captures that have this screen (screenCount > 0)
-            evolutionCaptures = INDEX.captures.filter(c => c.screenCount > 0);
+            // Update filter button states
+            document.getElementById('evoChangesBtn').classList.toggle('active', !evolutionShowAll);
+            document.getElementById('evoAllBtn').classList.toggle('active', evolutionShowAll);
 
-            if (evolutionCaptures.length === 0) {
+            // Get all captures that have this screen (screenCount > 0)
+            const allCaptures = INDEX.captures.filter(c => c.screenCount > 0);
+
+            if (allCaptures.length === 0) {
                 filmstrip.innerHTML = '<div class="evolution-empty">No captures available</div>';
                 counter.textContent = '0 / 0';
+                evolutionCaptures = [];
                 return;
             }
 
             // Find which captures this screen meaningfully changed in
-            const changedCaptures = new Set();
-            evolutionCaptures.forEach((capture, idx) => {
+            const changedCaptureIds = new Set();
+            allCaptures.forEach((capture, idx) => {
                 if (idx === 0) return; // First capture is baseline
                 const changeData = INDEX.changeData?.[capture.id] || {};
                 const changePct = changeData[screenId];
                 if (changePct !== undefined && changePct > threshold) {
-                    changedCaptures.add(capture.id);
+                    changedCaptureIds.add(capture.id);
                 }
             });
 
-            // Find current capture index
+            // Filter captures based on mode
+            if (evolutionShowAll) {
+                evolutionCaptures = allCaptures;
+            } else {
+                // Changes only: include first capture (baseline) + any changed captures
+                evolutionCaptures = allCaptures.filter((c, idx) =>
+                    idx === 0 || changedCaptureIds.has(c.id)
+                );
+            }
+
+            if (evolutionCaptures.length === 0) {
+                filmstrip.innerHTML = '<div class="evolution-empty">No changes detected for this screen</div>';
+                counter.textContent = '0 changes';
+                return;
+            }
+
+            // Find current capture index in filtered list
             evolutionIdx = evolutionCaptures.findIndex(c => c.id === initialCaptureId);
             if (evolutionIdx < 0) evolutionIdx = evolutionCaptures.length - 1;
 
             // Render filmstrip
             filmstrip.innerHTML = evolutionCaptures.map((capture, idx) => {
-                const isChanged = changedCaptures.has(capture.id);
+                const isChanged = changedCaptureIds.has(capture.id);
                 const isActive = idx === evolutionIdx;
                 const changeData = INDEX.changeData?.[capture.id] || {};
                 const changePct = changeData[screenId];
+                const isBaseline = allCaptures.indexOf(capture) === 0;
 
                 return `
                     <div class="evolution-frame ${isActive ? 'active' : ''} ${isChanged ? 'changed' : ''}"
@@ -2160,16 +2184,20 @@
                         <img src="${CAPTURES_DIR}/${capture.id}/${screenId}.png"
                              onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%22140%22><rect fill=%22%23161b22%22 width=%2280%22 height=%22140%22/></svg>'">
                         <div class="frame-info">
-                            <div class="commit">${capture.commit}</div>
-                            ${isChanged ? `<div class="change-pct">${changePct.toFixed(1)}%</div>` : ''}
+                            <div class="commit">${isBaseline ? 'baseline' : capture.commit}</div>
+                            ${isChanged && changePct ? `<div class="change-pct">${changePct.toFixed(1)}%</div>` : ''}
                         </div>
                     </div>
                 `;
             }).join('');
 
             // Update counter
-            const changedCount = changedCaptures.size;
-            counter.textContent = `${evolutionIdx + 1} / ${evolutionCaptures.length}${changedCount > 0 ? ` (${changedCount} changes)` : ''}`;
+            const changedCount = changedCaptureIds.size;
+            if (evolutionShowAll) {
+                counter.textContent = `${evolutionIdx + 1} / ${evolutionCaptures.length} (${changedCount} changes)`;
+            } else {
+                counter.textContent = `${evolutionIdx + 1} / ${evolutionCaptures.length} changes`;
+            }
 
             // Scroll to current frame
             setTimeout(() => {
@@ -2178,6 +2206,13 @@
                     activeFrame.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                 }
             }, 100);
+        }
+
+        function setEvolutionFilter(showAll) {
+            evolutionShowAll = showAll;
+            if (currentModalScreen) {
+                renderScreenEvolution(currentModalScreen, evolutionCaptures[evolutionIdx]?.id);
+            }
         }
 
         function selectEvolutionFrame(idx) {
@@ -2196,14 +2231,18 @@
 
             // Update counter
             const counter = document.getElementById('evoCounter');
-            const threshold = MANIFEST.changeThreshold || 0.5;
-            const changedCount = evolutionCaptures.filter((c, i) => {
-                if (i === 0) return false;
-                const changeData = INDEX.changeData?.[c.id] || {};
-                const changePct = changeData[currentModalScreen];
-                return changePct !== undefined && changePct > threshold;
-            }).length;
-            counter.textContent = `${idx + 1} / ${evolutionCaptures.length}${changedCount > 0 ? ` (${changedCount} changes)` : ''}`;
+            if (evolutionShowAll) {
+                const threshold = MANIFEST.changeThreshold || 0.5;
+                const changedCount = evolutionCaptures.filter((c, i) => {
+                    if (i === 0) return false;
+                    const changeData = INDEX.changeData?.[c.id] || {};
+                    const changePct = changeData[currentModalScreen];
+                    return changePct !== undefined && changePct > threshold;
+                }).length;
+                counter.textContent = `${idx + 1} / ${evolutionCaptures.length} (${changedCount} changes)`;
+            } else {
+                counter.textContent = `${idx + 1} / ${evolutionCaptures.length} changes`;
+            }
 
             // Scroll to frame
             const filmstrip = document.getElementById('evolutionFilmstrip');
