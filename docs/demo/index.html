@@ -329,6 +329,8 @@
             top: 60px; left: 0; right: 0; bottom: 100px;
             overflow: hidden;
             cursor: grab;
+            touch-action: none;
+            overscroll-behavior: contain;
         }
         .map-container:active { cursor: grabbing; }
         .map-canvas {
@@ -2286,6 +2288,7 @@
             // Touch events for mobile
             container.addEventListener('touchstart', (e) => {
                 if (e.target.closest('.map-screen')) return;
+                e.preventDefault(); // Prevent pull-to-refresh
 
                 if (e.touches.length === 1) {
                     // Single finger - pan
@@ -2305,6 +2308,7 @@
             container.addEventListener('touchmove', (e) => {
                 if (e.touches.length === 1 && isDragging) {
                     // Single finger pan
+                    e.preventDefault(); // Prevent scroll/pull-to-refresh
                     mapTranslateX = e.touches[0].clientX - dragStartX;
                     mapTranslateY = e.touches[0].clientY - dragStartY;
                     updateMapTransform();
