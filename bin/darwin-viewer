@@ -997,13 +997,15 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             .screen-card { width: calc(50% - 8px) !important; }
             .view-compare { flex-direction: column !important; }
             .compare-panel { width: 100% !important; max-height: 50vh; }
-            .map-screen { width: 100px !important; height: 180px !important; }
-            .map-screen .label { font-size: 10px !important; }
+            .map-screen { width: 120px !important; height: 200px !important; }
+            .map-screen .screen-label { font-size: 11px !important; opacity: 1 !important; }
+            .connection { stroke-width: 6 !important; }
         }
         @media (max-width: 390px) {
             .mode-tab { padding: 8px 10px; font-size: 12px; }
             .screen-card { width: 100% !important; }
-            .map-screen { width: 80px !important; height: 140px !important; }
+            .map-screen { width: 90px !important; height: 150px !important; }
+            .connection { stroke-width: 7 !important; }
         }
         @media (pointer: coarse) {
             .filter-btn, .toggle-btn, .mode-tab, button { min-height: 44px; min-width: 44px; }
