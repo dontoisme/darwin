@@ -747,8 +747,8 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         .mini-map-svg {
             position: absolute;
             top: 0; left: 0;
-            width: 100%;
-            height: 100%;
+            width: 600px;
+            height: 400px;
             pointer-events: none;
         }
         .mini-connection {
@@ -2455,8 +2455,8 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             });
 
             // Draw connections
-            svg.setAttribute('width', '100%');
-            svg.setAttribute('height', '100%');
+            svg.setAttribute('width', '600');
+            svg.setAttribute('height', '400');
 
             for (const [id, pos] of Object.entries(positions)) {
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
