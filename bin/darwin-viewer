@@ -477,6 +477,8 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             top: 60px; left: 0; right: 0; bottom: 100px;
             overflow: hidden;
             cursor: grab;
+            touch-action: none;
+            overscroll-behavior: contain;
         }
         .map-container:active { cursor: grabbing; }
         .map-canvas {
@@ -1922,13 +1924,13 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             // Touch events for mobile
             container.addEventListener('touchstart', (e) => {
                 if (e.target.closest('.map-screen')) return;
+                e.preventDefault(); // Prevent pull-to-refresh
                 if (e.touches.length === 1) {
                     isTouching = true;
                     isDragging = true;
                     dragStartX = e.touches[0].clientX - mapTranslateX;
                     dragStartY = e.touches[0].clientY - mapTranslateY;
                 } else if (e.touches.length === 2) {
-                    e.preventDefault();
                     isDragging = false;
                     lastTouchDistance = getTouchDistance(e.touches);
                     lastTouchCenter = getTouchCenter(e.touches, container);
@@ -1937,6 +1939,7 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
 
             container.addEventListener('touchmove', (e) => {
                 if (e.touches.length === 1 && isDragging) {
+                    e.preventDefault(); // Prevent scroll/pull-to-refresh
                     mapTranslateX = e.touches[0].clientX - dragStartX;
                     mapTranslateY = e.touches[0].clientY - dragStartY;
                     updateMapTransform();
