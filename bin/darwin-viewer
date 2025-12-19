@@ -689,11 +689,11 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         /* Mini-map in modal */
         .mini-map {
             background: var(--bg);
-            border-radius: 12px;
-            padding: 30px;
-            margin-top: 20px;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
             position: relative;
-            height: 500px;
+            height: 280px;
             overflow: hidden;
         }
         .mini-map-canvas {
@@ -704,16 +704,16 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         .mini-screen {
             position: absolute;
             background: var(--bg-tertiary);
-            border: 3px solid var(--border);
-            border-radius: 8px;
-            width: 70px;
-            height: 120px;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            width: 50px;
+            height: 85px;
             cursor: pointer;
             transition: all 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 10px;
+            font-size: 8px;
             color: var(--text-muted);
             text-align: center;
             overflow: hidden;
@@ -726,10 +726,9 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         .mini-screen.current {
             border-color: var(--accent);
             background: var(--bg-secondary);
-            width: 100px;
-            height: 170px;
+            width: 70px;
+            height: 120px;
             z-index: 5;
-            box-shadow: 0 0 20px rgba(88, 166, 255, 0.4);
         }
         .mini-screen.incoming { border-color: var(--accent-green); }
         .mini-screen.outgoing { border-color: var(--accent-yellow); }
@@ -758,19 +757,19 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         .mini-arrow.bidirectional { fill: var(--accent-purple); }
         .mini-map-legend {
             display: flex;
-            gap: 16px;
-            font-size: 12px;
+            gap: 12px;
+            font-size: 11px;
             color: var(--text);
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             justify-content: center;
-            padding: 8px 12px;
+            padding: 6px 10px;
             background: var(--bg-tertiary);
-            border-radius: 6px;
+            border-radius: 4px;
         }
         .mini-map-legend span {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
         }
         .mini-map-legend .dot {
             width: 10px;
@@ -2343,13 +2342,13 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             const incomingOnly = incoming.filter(id => !bidirectional.includes(id));
 
             // Layout: current screen in center, incoming on left, outgoing on right, bidirectional on top/bottom
-            const centerX = 220;
-            const centerY = 200;
-            const currentWidth = 100;
-            const currentHeight = 170;
-            const miniWidth = 70;
-            const miniHeight = 120;
-            const spacing = 80;
+            const centerX = 180;
+            const centerY = 100;
+            const currentWidth = 70;
+            const currentHeight = 120;
+            const miniWidth = 50;
+            const miniHeight = 85;
+            const spacing = 50;
 
             // Add current screen (center)
             const currentDiv = document.createElement('div');
