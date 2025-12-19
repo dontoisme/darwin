@@ -263,6 +263,62 @@
             cursor: pointer;
             font-size: 14px;
         }
+        .timelapse-filter-btns {
+            display: flex;
+            gap: 4px;
+        }
+        .timelapse-filter-btns button {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .timelapse-filter-btns button.active {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
+        }
+        .commit-list {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 8px 0;
+            margin-top: 8px;
+        }
+        .commit-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            white-space: nowrap;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        .commit-item.active {
+            border-color: var(--accent);
+            background: var(--bg-secondary);
+        }
+        .commit-item.changed {
+            color: var(--accent-yellow);
+        }
+        .commit-item input[type="checkbox"] {
+            width: 12px;
+            height: 12px;
+            margin: 0;
+            cursor: pointer;
+        }
+        .timelapse-counter {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-left: 8px;
+        }
 
         /* Map View */
         .map-container {
@@ -1054,6 +1110,11 @@
         let timelinePosition = 0;
         let isPlaying = false;
 
+        // Timelapse filter state
+        let timelapseShowAll = false; // Default to changes-only mode
+        let timelapseFilteredCaptures = []; // Filtered list of captures
+        let manualChangedCommits = new Set(); // Manually marked as changed
+
         // Evolution state
         let currentModalScreen = null;
         let evolutionCaptures = [];
@@ -1391,15 +1452,19 @@
             const captures = INDEX.captures || [];
             const screens = Object.entries(MANIFEST.screens);
 
+            // Build filtered captures list
+            buildTimelapseFilteredCaptures();
+
             container.innerHTML = `
                 <div class="filters">
-                    <span class="filter-label">Highlight changes</span>
-                    <label class="filter-toggle">
-                        <input type="checkbox" id="fadeUnchanged" checked onchange="updateTimelapse()">
-                        Fade unchanged
-                    </label>
+                    <span class="filter-label">Commits</span>
+                    <div class="timelapse-filter-btns">
+                        <button id="timelapseChangesBtn" class="${!timelapseShowAll ? 'active' : ''}" onclick="setTimelapseFilter(false)">Changes</button>
+                        <button id="timelapseAllBtn" class="${timelapseShowAll ? 'active' : ''}" onclick="setTimelapseFilter(true)">All</button>
+                    </div>
+                    <span class="timelapse-counter" id="timelapseCounter"></span>
                 </div>
-                <div class="view-single" style="padding-bottom: 120px;">
+                <div class="view-single" style="padding-bottom: 160px;">
                     <div class="screen-grid" id="timelapseGrid">
                         ${screens.map(([id, screen]) => `
                             <div class="screen-card" data-id="${id}" onclick="openModal('${id}')">
@@ -1415,28 +1480,44 @@
                 </div>
                 <div class="timelapse-controls">
                     <input type="range" class="timeline-slider" id="timelineSlider"
-                           min="0" max="${captures.length - 1}" value="${captures.length - 1}"
+                           min="0" max="${timelapseFilteredCaptures.length - 1}" value="0"
                            oninput="updateTimelapse()">
                     <div class="timeline-info">
                         <span id="timelineDate"></span>
                         <span class="timeline-commit" id="timelineCommit"></span>
-                        <button class="play-btn" onclick="togglePlay()">${isPlaying ? '⏸ Pause' : '▶ Play'}</button>
+                        <button class="play-btn" id="timelapsePlayBtn" onclick="togglePlay()">▶ Play</button>
                     </div>
+                    <div class="commit-list" id="commitList"></div>
                 </div>
             `;
+            renderCommitList();
             updateTimelapse();
+            // Auto-play from beginning after a short delay
+            setTimeout(() => {
+                isPlaying = true;
+                updatePlayButton();
+                playTimelapse();
+            }, 500);
         }
 
         function updateTimelapse() {
             const slider = document.getElementById('timelineSlider');
-            const captures = INDEX.captures || [];
+            if (!slider) return;
+
             const idx = parseInt(slider.value);
-            const capture = captures[idx];
+            const capture = timelapseFilteredCaptures[idx];
 
             if (!capture) return;
 
             document.getElementById('timelineDate').textContent = new Date(capture.timestamp).toLocaleDateString();
             document.getElementById('timelineCommit').textContent = capture.commit;
+
+            // Update counter
+            const counter = document.getElementById('timelapseCounter');
+            if (counter) {
+                const totalChanges = getChangedCommitIds().size;
+                counter.textContent = `${idx + 1} / ${timelapseFilteredCaptures.length} (${totalChanges} changes)`;
+            }
 
             // Update images
             document.querySelectorAll('#timelapseGrid img[data-screen]').forEach(img => {
@@ -1444,25 +1525,32 @@
                 img.src = `${CAPTURES_DIR}/${capture.id}/${screenId}.png`;
             });
 
-            // Fade unchanged if enabled
-            const fadeUnchanged = document.getElementById('fadeUnchanged')?.checked;
-            if (fadeUnchanged && idx > 0) {
-                const prevCapture = captures[idx - 1];
-                // In real implementation, we'd compare actual files
-                // For now, just show all
-            }
+            // Highlight active commit in list
+            document.querySelectorAll('.commit-item').forEach((item, i) => {
+                item.classList.toggle('active', i === idx);
+            });
         }
 
         function togglePlay() {
             isPlaying = !isPlaying;
+            updatePlayButton();
             if (isPlaying) {
                 playTimelapse();
+            }
+        }
+
+        function updatePlayButton() {
+            const btn = document.getElementById('timelapsePlayBtn');
+            if (btn) {
+                btn.textContent = isPlaying ? '⏸ Pause' : '▶ Play';
             }
         }
 
         function playTimelapse() {
             if (!isPlaying) return;
             const slider = document.getElementById('timelineSlider');
+            if (!slider) return;
+
             const max = parseInt(slider.max);
             let val = parseInt(slider.value);
 
@@ -1472,7 +1560,119 @@
                 setTimeout(playTimelapse, 1000);
             } else {
                 isPlaying = false;
+                updatePlayButton();
             }
+        }
+
+        // Get set of commit IDs that have meaningful changes
+        function getChangedCommitIds() {
+            const threshold = MANIFEST.changeThreshold || 0.5;
+            const changedIds = new Set();
+            const allCaptures = INDEX.captures.filter(c => c.screenCount > 0);
+
+            allCaptures.forEach((capture, idx) => {
+                if (idx === 0) return; // First is baseline
+                const changeData = INDEX.changeData?.[capture.id] || {};
+                // Check if ANY screen changed above threshold
+                const hasChange = Object.values(changeData).some(pct => pct > threshold);
+                if (hasChange || manualChangedCommits.has(capture.id)) {
+                    changedIds.add(capture.id);
+                }
+            });
+
+            // Also include manually marked commits
+            manualChangedCommits.forEach(id => changedIds.add(id));
+
+            return changedIds;
+        }
+
+        function buildTimelapseFilteredCaptures() {
+            const allCaptures = INDEX.captures.filter(c => c.screenCount > 0);
+            const changedIds = getChangedCommitIds();
+
+            if (timelapseShowAll) {
+                timelapseFilteredCaptures = allCaptures;
+            } else {
+                // Changes only: baseline + changed captures
+                timelapseFilteredCaptures = allCaptures.filter((c, idx) =>
+                    idx === 0 || changedIds.has(c.id)
+                );
+            }
+        }
+
+        function setTimelapseFilter(showAll) {
+            timelapseShowAll = showAll;
+            document.getElementById('timelapseChangesBtn')?.classList.toggle('active', !showAll);
+            document.getElementById('timelapseAllBtn')?.classList.toggle('active', showAll);
+
+            // Rebuild filtered list
+            buildTimelapseFilteredCaptures();
+
+            // Update slider
+            const slider = document.getElementById('timelineSlider');
+            if (slider) {
+                slider.max = timelapseFilteredCaptures.length - 1;
+                slider.value = 0;
+            }
+
+            renderCommitList();
+            updateTimelapse();
+        }
+
+        function renderCommitList() {
+            const commitList = document.getElementById('commitList');
+            if (!commitList) return;
+
+            const changedIds = getChangedCommitIds();
+
+            commitList.innerHTML = timelapseFilteredCaptures.map((capture, idx) => {
+                const isChanged = changedIds.has(capture.id) || manualChangedCommits.has(capture.id);
+                const isChecked = manualChangedCommits.has(capture.id);
+                return `
+                    <div class="commit-item ${isChanged ? 'changed' : ''}" onclick="jumpToCommit(${idx})">
+                        <input type="checkbox" ${isChecked ? 'checked' : ''}
+                               onclick="event.stopPropagation(); toggleManualChange('${capture.id}', this.checked)"
+                               title="Mark as changed">
+                        <span>${capture.commit}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function jumpToCommit(idx) {
+            const slider = document.getElementById('timelineSlider');
+            if (slider) {
+                slider.value = idx;
+                updateTimelapse();
+            }
+        }
+
+        function toggleManualChange(captureId, isChecked) {
+            if (isChecked) {
+                manualChangedCommits.add(captureId);
+            } else {
+                manualChangedCommits.delete(captureId);
+            }
+
+            // Debug output for user to copy
+            const commitArray = Array.from(manualChangedCommits);
+            console.log('Manual changed commits:', JSON.stringify(commitArray));
+            console.log('To set as default, update manualChangedCommits initialization:');
+            console.log(`let manualChangedCommits = new Set(${JSON.stringify(commitArray)});`);
+
+            // Re-render if we're in changes-only mode
+            if (!timelapseShowAll) {
+                buildTimelapseFilteredCaptures();
+                const slider = document.getElementById('timelineSlider');
+                if (slider) {
+                    slider.max = timelapseFilteredCaptures.length - 1;
+                }
+                renderCommitList();
+            } else {
+                // Just update visual state
+                renderCommitList();
+            }
+            updateTimelapse();
         }
 
         function renderMapView(container) {
