@@ -1071,13 +1071,18 @@
                 max-height: 50vh;
             }
 
-            /* Map view */
+            /* Map view - larger screens for mobile visibility */
             .map-screen {
-                width: 100px !important;
-                height: 180px !important;
+                width: 120px !important;
+                height: 200px !important;
             }
-            .map-screen .label {
-                font-size: 10px !important;
+            .map-screen .screen-label {
+                font-size: 11px !important;
+                opacity: 1 !important;
+            }
+            /* Thicker connection lines on mobile */
+            .connection {
+                stroke-width: 6 !important;
             }
         }
 
@@ -1112,11 +1117,11 @@
                 font-size: 13px;
             }
             .map-screen {
-                width: 70px !important;
-                height: 120px !important;
+                width: 100px !important;
+                height: 170px !important;
             }
             .map-screen .screen-label {
-                font-size: 8px !important;
+                font-size: 10px !important;
             }
             .modal-close {
                 width: 36px;
@@ -1179,14 +1184,18 @@
                 width: 100% !important;
             }
             .map-screen {
-                width: 80px !important;
-                height: 140px !important;
+                width: 90px !important;
+                height: 150px !important;
             }
             .evolution-frame {
                 width: 50px;
             }
             .evolution-frame img {
                 height: 85px;
+            }
+            /* Slightly thicker lines for smallest screens */
+            .connection {
+                stroke-width: 7 !important;
             }
         }
 
