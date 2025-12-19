@@ -997,14 +997,12 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             .screen-card { width: calc(50% - 8px) !important; }
             .view-compare { flex-direction: column !important; }
             .compare-panel { width: 100% !important; max-height: 50vh; }
-            .map-screen { width: 120px !important; height: 200px !important; }
             .map-screen .screen-label { font-size: 11px !important; opacity: 1 !important; }
             .connection { stroke-width: 6 !important; }
         }
         @media (max-width: 390px) {
             .mode-tab { padding: 8px 10px; font-size: 12px; }
             .screen-card { width: 100% !important; }
-            .map-screen { width: 90px !important; height: 150px !important; }
             .connection { stroke-width: 7 !important; }
         }
         @media (pointer: coarse) {
@@ -1578,10 +1576,31 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         }
 
         function layoutScreensForMap() {
-            const SCREEN_WIDTH = 280;
-            const SCREEN_HEIGHT = 600;
-            const H_PADDING = 80;
-            const V_PADDING = 120;
+            // Responsive screen dimensions based on viewport
+            const viewportWidth = window.innerWidth;
+            let SCREEN_WIDTH, SCREEN_HEIGHT, H_PADDING, V_PADDING;
+
+            if (viewportWidth <= 390) {
+                SCREEN_WIDTH = 90;
+                SCREEN_HEIGHT = 150;
+                H_PADDING = 30;
+                V_PADDING = 50;
+            } else if (viewportWidth <= 480) {
+                SCREEN_WIDTH = 100;
+                SCREEN_HEIGHT = 170;
+                H_PADDING = 40;
+                V_PADDING = 60;
+            } else if (viewportWidth <= 768) {
+                SCREEN_WIDTH = 120;
+                SCREEN_HEIGHT = 200;
+                H_PADDING = 50;
+                V_PADDING = 80;
+            } else {
+                SCREEN_WIDTH = 280;
+                SCREEN_HEIGHT = 600;
+                H_PADDING = 80;
+                V_PADDING = 120;
+            }
             const groups = MANIFEST.groups || {};
 
             // Build reverse flow map (who flows TO this screen)
@@ -2598,6 +2617,17 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         }
 
         init();
+
+        // Re-render map on resize (orientation change, etc)
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (currentMode === 'map') {
+                    renderMapView(document.getElementById('main'));
+                }
+            }, 250);
+        });
     </script>
 </body>
 </html>
