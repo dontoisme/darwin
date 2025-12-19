@@ -660,6 +660,8 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             align-items: center;
             justify-content: center;
             z-index: 2000;
+            touch-action: none;
+            overscroll-behavior: contain;
         }
         .modal-overlay.active { display: flex; }
         .modal {
@@ -669,6 +671,7 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             max-height: 95vh;
             overflow: hidden;
             display: flex;
+            overscroll-behavior: contain;
         }
         .modal img {
             max-height: 90vh;
@@ -680,6 +683,8 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             padding: 24px;
             border-left: 1px solid var(--border);
             overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
         }
         .modal-info h2 { font-size: 20px; margin-bottom: 8px; }
         .modal-info .id { font-family: monospace; color: var(--text-muted); margin-bottom: 16px; }
