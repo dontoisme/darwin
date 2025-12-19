@@ -1053,8 +1053,10 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
                     <div class="evolution-header">
                         <h4>Screen Evolution</h4>
                         <div class="evolution-controls">
+                            <button id="evoChangesBtn" class="active" onclick="setEvolutionFilter(false)">Changes</button>
+                            <button id="evoAllBtn" onclick="setEvolutionFilter(true)">All</button>
                             <button id="evoPlayBtn" onclick="toggleEvolutionPlay()">▶ Play</button>
-                            <span class="evolution-counter" id="evoCounter">1 / 23</span>
+                            <span class="evolution-counter" id="evoCounter">1 / 5</span>
                         </div>
                     </div>
                     <div class="evolution-filmstrip" id="evolutionFilmstrip">
@@ -1096,6 +1098,7 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         let evolutionIdx = 0;
         let evolutionIsPlaying = false;
         let evolutionTimer = null;
+        let evolutionShowAll = false;
 
         // Map state
         let mapScale = 0.25;
@@ -2155,37 +2158,55 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         function renderScreenEvolution(screenId, initialCaptureId) {
             const filmstrip = document.getElementById('evolutionFilmstrip');
             const counter = document.getElementById('evoCounter');
-            const playBtn = document.getElementById('evoPlayBtn');
             const threshold = MANIFEST.changeThreshold || 0.5;
 
             stopEvolutionPlay();
 
-            evolutionCaptures = INDEX.captures.filter(c => c.screenCount > 0);
+            document.getElementById('evoChangesBtn').classList.toggle('active', !evolutionShowAll);
+            document.getElementById('evoAllBtn').classList.toggle('active', evolutionShowAll);
 
-            if (evolutionCaptures.length === 0) {
+            const allCaptures = INDEX.captures.filter(c => c.screenCount > 0);
+
+            if (allCaptures.length === 0) {
                 filmstrip.innerHTML = '<div class="evolution-empty">No captures available</div>';
                 counter.textContent = '0 / 0';
+                evolutionCaptures = [];
                 return;
             }
 
-            const changedCaptures = new Set();
-            evolutionCaptures.forEach((capture, idx) => {
+            const changedCaptureIds = new Set();
+            allCaptures.forEach((capture, idx) => {
                 if (idx === 0) return;
                 const changeData = INDEX.changeData?.[capture.id] || {};
                 const changePct = changeData[screenId];
                 if (changePct !== undefined && changePct > threshold) {
-                    changedCaptures.add(capture.id);
+                    changedCaptureIds.add(capture.id);
                 }
             });
+
+            if (evolutionShowAll) {
+                evolutionCaptures = allCaptures;
+            } else {
+                evolutionCaptures = allCaptures.filter((c, idx) =>
+                    idx === 0 || changedCaptureIds.has(c.id)
+                );
+            }
+
+            if (evolutionCaptures.length === 0) {
+                filmstrip.innerHTML = '<div class="evolution-empty">No changes detected for this screen</div>';
+                counter.textContent = '0 changes';
+                return;
+            }
 
             evolutionIdx = evolutionCaptures.findIndex(c => c.id === initialCaptureId);
             if (evolutionIdx < 0) evolutionIdx = evolutionCaptures.length - 1;
 
             filmstrip.innerHTML = evolutionCaptures.map((capture, idx) => {
-                const isChanged = changedCaptures.has(capture.id);
+                const isChanged = changedCaptureIds.has(capture.id);
                 const isActive = idx === evolutionIdx;
                 const changeData = INDEX.changeData?.[capture.id] || {};
                 const changePct = changeData[screenId];
+                const isBaseline = allCaptures.indexOf(capture) === 0;
 
                 return `
                     <div class="evolution-frame ${isActive ? 'active' : ''} ${isChanged ? 'changed' : ''}"
@@ -2194,15 +2215,19 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
                         <img src="${CAPTURES_DIR}/${capture.id}/${screenId}.png"
                              onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%22140%22><rect fill=%22%23161b22%22 width=%2280%22 height=%22140%22/></svg>'">
                         <div class="frame-info">
-                            <div class="commit">${capture.commit}</div>
-                            ${isChanged ? `<div class="change-pct">${changePct.toFixed(1)}%</div>` : ''}
+                            <div class="commit">${isBaseline ? 'baseline' : capture.commit}</div>
+                            ${isChanged && changePct ? `<div class="change-pct">${changePct.toFixed(1)}%</div>` : ''}
                         </div>
                     </div>
                 `;
             }).join('');
 
-            const changedCount = changedCaptures.size;
-            counter.textContent = `${evolutionIdx + 1} / ${evolutionCaptures.length}${changedCount > 0 ? ` (${changedCount} changes)` : ''}`;
+            const changedCount = changedCaptureIds.size;
+            if (evolutionShowAll) {
+                counter.textContent = `${evolutionIdx + 1} / ${evolutionCaptures.length} (${changedCount} changes)`;
+            } else {
+                counter.textContent = `${evolutionIdx + 1} / ${evolutionCaptures.length} changes`;
+            }
 
             setTimeout(() => {
                 const activeFrame = filmstrip.querySelector('.evolution-frame.active');
@@ -2210,6 +2235,13 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
                     activeFrame.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                 }
             }, 100);
+        }
+
+        function setEvolutionFilter(showAll) {
+            evolutionShowAll = showAll;
+            if (currentModalScreen) {
+                renderScreenEvolution(currentModalScreen, evolutionCaptures[evolutionIdx]?.id);
+            }
         }
 
         function selectEvolutionFrame(idx) {
@@ -2225,14 +2257,18 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             });
 
             const counter = document.getElementById('evoCounter');
-            const threshold = MANIFEST.changeThreshold || 0.5;
-            const changedCount = evolutionCaptures.filter((c, i) => {
-                if (i === 0) return false;
-                const changeData = INDEX.changeData?.[c.id] || {};
-                const changePct = changeData[currentModalScreen];
-                return changePct !== undefined && changePct > threshold;
-            }).length;
-            counter.textContent = `${idx + 1} / ${evolutionCaptures.length}${changedCount > 0 ? ` (${changedCount} changes)` : ''}`;
+            if (evolutionShowAll) {
+                const threshold = MANIFEST.changeThreshold || 0.5;
+                const changedCount = evolutionCaptures.filter((c, i) => {
+                    if (i === 0) return false;
+                    const changeData = INDEX.changeData?.[c.id] || {};
+                    const changePct = changeData[currentModalScreen];
+                    return changePct !== undefined && changePct > threshold;
+                }).length;
+                counter.textContent = `${idx + 1} / ${evolutionCaptures.length} (${changedCount} changes)`;
+            } else {
+                counter.textContent = `${idx + 1} / ${evolutionCaptures.length} changes`;
+            }
 
             const filmstrip = document.getElementById('evolutionFilmstrip');
             const activeFrame = filmstrip.querySelector('.evolution-frame.active');
