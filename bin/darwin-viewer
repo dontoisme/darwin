@@ -805,6 +805,82 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             z-index: 2001;
         }
 
+        /* Screen Evolution Timeline */
+        .screen-evolution {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        .evolution-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .evolution-header h4 { margin: 0; font-size: 12px; text-transform: uppercase; color: var(--text-muted); }
+        .evolution-controls { display: flex; gap: 8px; align-items: center; }
+        .evolution-controls button {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .evolution-controls button:hover { border-color: var(--accent); }
+        .evolution-controls button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+        .evolution-filmstrip {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding: 8px 0;
+            scroll-behavior: smooth;
+        }
+        .evolution-filmstrip::-webkit-scrollbar { height: 6px; }
+        .evolution-filmstrip::-webkit-scrollbar-track { background: var(--bg-tertiary); border-radius: 3px; }
+        .evolution-filmstrip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        .evolution-frame {
+            flex-shrink: 0;
+            width: 80px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            position: relative;
+        }
+        .evolution-frame:hover { transform: scale(1.05); }
+        .evolution-frame.active { transform: scale(1.05); }
+        .evolution-frame.active::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+            pointer-events: none;
+        }
+        .evolution-frame.changed::before {
+            content: '●';
+            position: absolute;
+            top: -6px;
+            right: -2px;
+            color: var(--accent-yellow);
+            font-size: 14px;
+            z-index: 1;
+        }
+        .evolution-frame img {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 2px solid var(--border);
+            background: var(--bg-tertiary);
+        }
+        .evolution-frame .frame-info { margin-top: 6px; text-align: center; }
+        .evolution-frame .commit { font-family: monospace; font-size: 10px; color: var(--accent); }
+        .evolution-frame .change-pct { font-size: 9px; color: var(--accent-yellow); margin-top: 2px; }
+        .evolution-empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px; }
+        .evolution-counter { font-size: 11px; color: var(--text-muted); }
+
         /* Filters */
         .filters {
             padding: 16px 20px;
@@ -972,6 +1048,20 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
                 <ul id="modalFlows"></ul>
                 <h4>Source Files</h4>
                 <ul id="modalSources"></ul>
+
+                <div class="screen-evolution" id="screenEvolution">
+                    <div class="evolution-header">
+                        <h4>Screen Evolution</h4>
+                        <div class="evolution-controls">
+                            <button id="evoPlayBtn" onclick="toggleEvolutionPlay()">▶ Play</button>
+                            <span class="evolution-counter" id="evoCounter">1 / 23</span>
+                        </div>
+                    </div>
+                    <div class="evolution-filmstrip" id="evolutionFilmstrip">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+
                 <h4>Connection Map</h4>
                 <div class="mini-map">
                     <div class="mini-map-legend">
@@ -999,6 +1089,13 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         let selectedCapture2 = null;
         let timelinePosition = 0;
         let isPlaying = false;
+
+        // Evolution state
+        let currentModalScreen = null;
+        let evolutionCaptures = [];
+        let evolutionIdx = 0;
+        let evolutionIsPlaying = false;
+        let evolutionTimer = null;
 
         // Map state
         let mapScale = 0.25;
@@ -2045,10 +2142,144 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
                 .join('') || '<li>None</li>';
             document.getElementById('modalSources').innerHTML = sourcesHtml;
 
+            // Render screen evolution filmstrip
+            currentModalScreen = screenId;
+            renderScreenEvolution(screenId, captureId);
+
             // Render mini-map
             renderMiniMap(screenId, captureId);
 
             document.getElementById('modal').classList.add('active');
+        }
+
+        function renderScreenEvolution(screenId, initialCaptureId) {
+            const filmstrip = document.getElementById('evolutionFilmstrip');
+            const counter = document.getElementById('evoCounter');
+            const playBtn = document.getElementById('evoPlayBtn');
+            const threshold = MANIFEST.changeThreshold || 0.5;
+
+            stopEvolutionPlay();
+
+            evolutionCaptures = INDEX.captures.filter(c => c.screenCount > 0);
+
+            if (evolutionCaptures.length === 0) {
+                filmstrip.innerHTML = '<div class="evolution-empty">No captures available</div>';
+                counter.textContent = '0 / 0';
+                return;
+            }
+
+            const changedCaptures = new Set();
+            evolutionCaptures.forEach((capture, idx) => {
+                if (idx === 0) return;
+                const changeData = INDEX.changeData?.[capture.id] || {};
+                const changePct = changeData[screenId];
+                if (changePct !== undefined && changePct > threshold) {
+                    changedCaptures.add(capture.id);
+                }
+            });
+
+            evolutionIdx = evolutionCaptures.findIndex(c => c.id === initialCaptureId);
+            if (evolutionIdx < 0) evolutionIdx = evolutionCaptures.length - 1;
+
+            filmstrip.innerHTML = evolutionCaptures.map((capture, idx) => {
+                const isChanged = changedCaptures.has(capture.id);
+                const isActive = idx === evolutionIdx;
+                const changeData = INDEX.changeData?.[capture.id] || {};
+                const changePct = changeData[screenId];
+
+                return `
+                    <div class="evolution-frame ${isActive ? 'active' : ''} ${isChanged ? 'changed' : ''}"
+                         onclick="selectEvolutionFrame(${idx})"
+                         data-idx="${idx}">
+                        <img src="${CAPTURES_DIR}/${capture.id}/${screenId}.png"
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%22140%22><rect fill=%22%23161b22%22 width=%2280%22 height=%22140%22/></svg>'">
+                        <div class="frame-info">
+                            <div class="commit">${capture.commit}</div>
+                            ${isChanged ? `<div class="change-pct">${changePct.toFixed(1)}%</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const changedCount = changedCaptures.size;
+            counter.textContent = `${evolutionIdx + 1} / ${evolutionCaptures.length}${changedCount > 0 ? ` (${changedCount} changes)` : ''}`;
+
+            setTimeout(() => {
+                const activeFrame = filmstrip.querySelector('.evolution-frame.active');
+                if (activeFrame) {
+                    activeFrame.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }
+            }, 100);
+        }
+
+        function selectEvolutionFrame(idx) {
+            if (idx < 0 || idx >= evolutionCaptures.length) return;
+
+            evolutionIdx = idx;
+            const capture = evolutionCaptures[idx];
+
+            document.getElementById('modalImg').src = `${CAPTURES_DIR}/${capture.id}/${currentModalScreen}.png`;
+
+            document.querySelectorAll('.evolution-frame').forEach((frame, i) => {
+                frame.classList.toggle('active', i === idx);
+            });
+
+            const counter = document.getElementById('evoCounter');
+            const threshold = MANIFEST.changeThreshold || 0.5;
+            const changedCount = evolutionCaptures.filter((c, i) => {
+                if (i === 0) return false;
+                const changeData = INDEX.changeData?.[c.id] || {};
+                const changePct = changeData[currentModalScreen];
+                return changePct !== undefined && changePct > threshold;
+            }).length;
+            counter.textContent = `${idx + 1} / ${evolutionCaptures.length}${changedCount > 0 ? ` (${changedCount} changes)` : ''}`;
+
+            const filmstrip = document.getElementById('evolutionFilmstrip');
+            const activeFrame = filmstrip.querySelector('.evolution-frame.active');
+            if (activeFrame) {
+                activeFrame.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+        }
+
+        function toggleEvolutionPlay() {
+            if (evolutionIsPlaying) {
+                stopEvolutionPlay();
+            } else {
+                startEvolutionPlay();
+            }
+        }
+
+        function startEvolutionPlay() {
+            evolutionIsPlaying = true;
+            const playBtn = document.getElementById('evoPlayBtn');
+            playBtn.textContent = '⏸ Pause';
+            playBtn.classList.add('active');
+
+            if (evolutionIdx >= evolutionCaptures.length - 1) {
+                evolutionIdx = -1;
+            }
+
+            evolutionTimer = setInterval(() => {
+                evolutionIdx++;
+                if (evolutionIdx >= evolutionCaptures.length) {
+                    stopEvolutionPlay();
+                    return;
+                }
+                selectEvolutionFrame(evolutionIdx);
+            }, 500);
+        }
+
+        function stopEvolutionPlay() {
+            evolutionIsPlaying = false;
+            if (evolutionTimer) {
+                clearInterval(evolutionTimer);
+                evolutionTimer = null;
+            }
+            const playBtn = document.getElementById('evoPlayBtn');
+            if (playBtn) {
+                playBtn.textContent = '▶ Play';
+                playBtn.classList.remove('active');
+            }
         }
 
         function renderMiniMap(screenId, captureId) {
@@ -2218,6 +2449,7 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         }
 
         function closeModal() {
+            stopEvolutionPlay();
             document.getElementById('modal').classList.remove('active');
         }
 
