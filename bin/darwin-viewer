@@ -2400,10 +2400,11 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             // Position incoming screens on the left
             incomingOnly.forEach((id, i) => {
                 const total = incomingOnly.length;
-                const startY = centerY - ((total - 1) * (miniHeight + 15)) / 2;
-                const x = 30;
-                const y = startY + i * (miniHeight + 15) - miniHeight / 2;
-                positions[id] = { x: x + miniWidth / 2, y: y + miniHeight / 2, type: 'incoming' };
+                const offsetY = centerY - ((total - 1) * (miniHeight + 10)) / 2;
+                const x = 20;
+                const y = offsetY + i * (miniHeight + 10) - miniHeight / 2;
+                // Store the actual div position (top-left corner)
+                positions[id] = { left: x, top: y, type: 'incoming' };
 
                 const div = document.createElement('div');
                 div.className = 'mini-screen incoming';
@@ -2419,10 +2420,10 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             // Position outgoing screens on the right
             outgoingOnly.forEach((id, i) => {
                 const total = outgoingOnly.length;
-                const startY = centerY - ((total - 1) * (miniHeight + 15)) / 2;
-                const x = 340;
-                const y = startY + i * (miniHeight + 15) - miniHeight / 2;
-                positions[id] = { x: x + miniWidth / 2, y: y + miniHeight / 2, type: 'outgoing' };
+                const offsetY = centerY - ((total - 1) * (miniHeight + 10)) / 2;
+                const x = 290;
+                const y = offsetY + i * (miniHeight + 10) - miniHeight / 2;
+                positions[id] = { left: x, top: y, type: 'outgoing' };
 
                 const div = document.createElement('div');
                 div.className = 'mini-screen outgoing';
@@ -2439,9 +2440,9 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             bidirectional.forEach((id, i) => {
                 const isTop = i % 2 === 0;
                 const col = Math.floor(i / 2);
-                const x = centerX + (col - Math.floor(bidirectional.length / 4)) * (miniWidth + 20) - miniWidth / 2;
-                const y = isTop ? 20 : 340;
-                positions[id] = { x: x + miniWidth / 2, y: y + miniHeight / 2, type: 'bidirectional' };
+                const x = centerX + (col - Math.floor(bidirectional.length / 4)) * (miniWidth + 15) - miniWidth / 2;
+                const y = isTop ? 5 : 175;
+                positions[id] = { left: x, top: y, type: 'bidirectional' };
 
                 const div = document.createElement('div');
                 div.className = 'mini-screen bidirectional';
@@ -2454,43 +2455,57 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
                 canvas.appendChild(div);
             });
 
-            // Draw connections
+            // Draw connections using actual screen positions
             svg.setAttribute('width', '600');
             svg.setAttribute('height', '400');
+
+            // Current screen edges
+            const currentLeft = centerX - currentWidth / 2;
+            const currentRight = centerX + currentWidth / 2;
+            const currentTop = centerY - currentHeight / 2;
+            const currentBottom = centerY + currentHeight / 2;
 
             for (const [id, pos] of Object.entries(positions)) {
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 let d;
 
+                // Calculate screen center and edges from stored position
+                const screenCenterX = pos.left + miniWidth / 2;
+                const screenCenterY = pos.top + miniHeight / 2;
+                const screenRight = pos.left + miniWidth;
+                const screenLeft = pos.left;
+                const screenTop = pos.top;
+                const screenBottom = pos.top + miniHeight;
+
                 if (pos.type === 'incoming') {
-                    // Curve from left screen to center
-                    const startX = pos.x + miniWidth/2;
-                    const startY = pos.y;
-                    const endX = centerX - currentWidth/2;
+                    // Curve from right edge of incoming screen to left edge of current
+                    const startX = screenRight;
+                    const startY = screenCenterY;
+                    const endX = currentLeft;
                     const endY = centerY;
                     const ctrlX = (startX + endX) / 2;
                     d = `M ${startX} ${startY} C ${ctrlX} ${startY}, ${ctrlX} ${endY}, ${endX} ${endY}`;
                 } else if (pos.type === 'outgoing') {
-                    // Curve from center to right screen
-                    const startX = centerX + currentWidth/2;
+                    // Curve from right edge of current to left edge of outgoing screen
+                    const startX = currentRight;
                     const startY = centerY;
-                    const endX = pos.x - miniWidth/2;
-                    const endY = pos.y;
+                    const endX = screenLeft;
+                    const endY = screenCenterY;
                     const ctrlX = (startX + endX) / 2;
                     d = `M ${startX} ${startY} C ${ctrlX} ${startY}, ${ctrlX} ${endY}, ${endX} ${endY}`;
                 } else {
                     // Bidirectional - vertical curve
-                    const isTop = pos.y < centerY;
+                    const isTop = screenCenterY < centerY;
                     if (isTop) {
-                        const startY = pos.y + miniHeight/2;
-                        const endY = centerY - currentHeight/2;
+                        const startY = screenBottom;
+                        const endY = currentTop;
                         const midY = (startY + endY) / 2;
-                        d = `M ${pos.x} ${startY} C ${pos.x} ${midY}, ${centerX} ${midY}, ${centerX} ${endY}`;
+                        d = `M ${screenCenterX} ${startY} C ${screenCenterX} ${midY}, ${centerX} ${midY}, ${centerX} ${endY}`;
                     } else {
-                        const startY = centerY + currentHeight/2;
-                        const endY = pos.y - miniHeight/2;
+                        const startY = currentBottom;
+                        const endY = screenTop;
                         const midY = (startY + endY) / 2;
-                        d = `M ${centerX} ${startY} C ${centerX} ${midY}, ${pos.x} ${midY}, ${pos.x} ${endY}`;
+                        d = `M ${centerX} ${startY} C ${centerX} ${midY}, ${screenCenterX} ${midY}, ${screenCenterX} ${endY}`;
                     }
                 }
 
