@@ -697,9 +697,20 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             overflow: hidden;
         }
         .mini-map-canvas {
-            position: relative;
-            width: 100%;
-            height: calc(100% - 50px);
+            position: absolute;
+            top: 36px;
+            left: 0;
+            width: 600px;
+            height: 400px;
+            cursor: grab;
+            transform: translate(0, 0);
+            transition: none;
+        }
+        .mini-map-canvas.panning {
+            cursor: grabbing;
+        }
+        .mini-map-canvas:active {
+            cursor: grabbing;
         }
         .mini-screen {
             position: absolute;
@@ -1098,6 +1109,13 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         let evolutionIsPlaying = false;
         let evolutionTimer = null;
         let evolutionShowAll = false;
+
+        // Mini-map panning state
+        let miniMapPanX = 0;
+        let miniMapPanY = 0;
+        let miniMapIsPanning = false;
+        let miniMapStartX = 0;
+        let miniMapStartY = 0;
 
         // Map state
         let mapScale = 0.25;
@@ -2481,6 +2499,78 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
                 path.setAttribute('data-screen', id);
                 svg.appendChild(path);
             }
+
+            // Reset pan position and initialize panning
+            miniMapPanX = 0;
+            miniMapPanY = 0;
+            canvas.style.transform = `translate(${miniMapPanX}px, ${miniMapPanY}px)`;
+            initMiniMapPanning();
+        }
+
+        let miniMapPanningInitialized = false;
+        function initMiniMapPanning() {
+            if (miniMapPanningInitialized) return;
+            miniMapPanningInitialized = true;
+
+            const canvas = document.getElementById('miniMapCanvas');
+
+            // Mouse events
+            canvas.addEventListener('mousedown', onMiniMapPanStart);
+            document.addEventListener('mousemove', onMiniMapPanMove);
+            document.addEventListener('mouseup', onMiniMapPanEnd);
+
+            // Touch events
+            canvas.addEventListener('touchstart', onMiniMapTouchStart, { passive: false });
+            document.addEventListener('touchmove', onMiniMapTouchMove, { passive: false });
+            document.addEventListener('touchend', onMiniMapPanEnd);
+        }
+
+        function onMiniMapPanStart(e) {
+            // Only pan on direct canvas click or if not clicking a mini-screen
+            if (e.target.classList.contains('mini-screen') || e.target.closest('.mini-screen')) {
+                return;
+            }
+            miniMapIsPanning = true;
+            miniMapStartX = e.clientX - miniMapPanX;
+            miniMapStartY = e.clientY - miniMapPanY;
+            document.getElementById('miniMapCanvas').classList.add('panning');
+            e.preventDefault();
+        }
+
+        function onMiniMapTouchStart(e) {
+            if (e.target.classList.contains('mini-screen') || e.target.closest('.mini-screen')) {
+                return;
+            }
+            if (e.touches.length === 1) {
+                miniMapIsPanning = true;
+                miniMapStartX = e.touches[0].clientX - miniMapPanX;
+                miniMapStartY = e.touches[0].clientY - miniMapPanY;
+                document.getElementById('miniMapCanvas').classList.add('panning');
+                e.preventDefault();
+            }
+        }
+
+        function onMiniMapPanMove(e) {
+            if (!miniMapIsPanning) return;
+            miniMapPanX = e.clientX - miniMapStartX;
+            miniMapPanY = e.clientY - miniMapStartY;
+            document.getElementById('miniMapCanvas').style.transform = `translate(${miniMapPanX}px, ${miniMapPanY}px)`;
+        }
+
+        function onMiniMapTouchMove(e) {
+            if (!miniMapIsPanning) return;
+            if (e.touches.length === 1) {
+                miniMapPanX = e.touches[0].clientX - miniMapStartX;
+                miniMapPanY = e.touches[0].clientY - miniMapPanY;
+                document.getElementById('miniMapCanvas').style.transform = `translate(${miniMapPanX}px, ${miniMapPanY}px)`;
+                e.preventDefault();
+            }
+        }
+
+        function onMiniMapPanEnd() {
+            miniMapIsPanning = false;
+            const canvas = document.getElementById('miniMapCanvas');
+            if (canvas) canvas.classList.remove('panning');
         }
 
         function closeModal() {
