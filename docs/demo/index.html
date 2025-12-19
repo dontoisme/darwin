@@ -1677,7 +1677,7 @@
 
         function renderMapView(container) {
             const captures = INDEX.captures || [];
-            mapTimelineIdx = captures.length - 1; // Start at latest
+            mapTimelineIdx = 0; // Start at beginning
             layoutScreensForMap();
 
             container.innerHTML = `
@@ -1723,6 +1723,17 @@
             setupMapControls();
             updateMapTransform();
             updateMapTimeline();
+
+            // Auto-play from beginning after a short delay
+            setTimeout(() => {
+                mapIsPlaying = true;
+                const btn = document.getElementById('mapPlayBtn');
+                if (btn) {
+                    btn.innerHTML = '⏸ Pause';
+                    btn.classList.add('active');
+                }
+                mapPlayLoop();
+            }, 500);
         }
 
         function layoutScreensForMap() {
@@ -2146,6 +2157,9 @@
                 btn.classList.toggle('active', mapIsPlaying);
             }
             if (mapIsPlaying) {
+                // Always restart from beginning when play is clicked
+                mapTimelineIdx = 0;
+                updateMapTimeline();
                 mapPlayLoop();
             } else if (mapPlaybackTimer) {
                 clearTimeout(mapPlaybackTimer);
