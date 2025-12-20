@@ -2,6 +2,21 @@
 
 All notable changes to Darwin will be documented in this file.
 
+## [1.2.0] - 2025-12-19
+
+### Added
+- **Auto-detect views** — `darwin detect` finds new SwiftUI views not yet in manifest
+- **Hook integration** — Post-commit hook now auto-detects and prompts to add new views
+- **First-Time User Experience** — Interactive setup wizard with Autopilot, Guided, Manual, and Custom modes
+- **Auto-open viewer** — Viewer opens automatically after capture (configurable)
+- **Fuzz tolerance** — 5% default tolerance in diff to ignore time/battery changes
+
+### Changed
+- `darwin init` now prompts for automation mode preference
+- `darwin.json` includes `mode` and `automation` settings
+- Git hook auto-installed based on mode choice
+- Mode-specific "Next Steps" messaging after init
+
 ## [1.1.0] - 2024-12-19
 
 ### Added
@@ -32,5 +47,6 @@ All notable changes to Darwin will be documented in this file.
 - **Git-aware** — Organized by commit, tracks source file → screen mapping
 - Homebrew installation support
 
+[1.2.0]: https://github.com/dontoisme/darwin/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/dontoisme/darwin/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/dontoisme/darwin/releases/tag/v1.0.0
