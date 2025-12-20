@@ -4,8 +4,8 @@
 class Darwin < Formula
   desc "Git-aware visual regression testing and development timelapse for iOS"
   homepage "https://github.com/dontoisme/darwin"
-  url "https://github.com/dontoisme/darwin/archive/refs/tags/v1.4.1.tar.gz"
-  sha256 "705221258fd70dd51740a8a439f3792ada3d04728f9a10876741d7fd1ec28e99"
+  url "https://github.com/dontoisme/darwin/archive/refs/tags/v1.4.2.tar.gz"
+  sha256 "720e1f4831f1777aea71c9938e7c8af27c1f45505a387e083e5a0e284720249f"
   license "MIT"
   head "https://github.com/dontoisme/darwin.git", branch: "main"
 
