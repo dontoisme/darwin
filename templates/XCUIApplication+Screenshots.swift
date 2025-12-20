@@ -4,6 +4,7 @@
 //
 //  Add this file to your UI test target.
 //  Usage: takeScreenshot("01-home") in any XCTestCase
+//         takeScreenshotWithElements("01-home", app: app) to also capture element coordinates
 //
 
 import XCTest
@@ -30,10 +31,144 @@ extension XCTestCase {
         saveScreenshotToFile(screenshot.image, name: name, folder: folder)
     }
 
+    /// Take a screenshot AND capture element coordinates for tap target mapping
+    /// - Parameters:
+    ///   - name: The screenshot filename (without extension)
+    ///   - app: The XCUIApplication to query for element coordinates
+    ///   - folder: The folder name within the project (default: "Screenshots")
+    func takeScreenshotWithElements(_ name: String, app: XCUIApplication, in folder: String = "Screenshots") {
+        // Small delay to ensure UI is fully rendered
+        Thread.sleep(forTimeInterval: 0.5)
+
+        // Capture element coordinates BEFORE screenshot (in case UI changes)
+        let elementData = captureElementCoordinates(from: app)
+
+        let screenshot = XCUIScreen.main.screenshot()
+
+        // Attach to test results (visible in Xcode)
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        // Save screenshot to filesystem
+        saveScreenshotToFile(screenshot.image, name: name, folder: folder)
+
+        // Save element coordinates alongside screenshot
+        saveElementCoordinates(elementData, name: name, folder: folder)
+    }
+
+    /// Capture coordinates for all accessible elements with identifiers
+    private func captureElementCoordinates(from app: XCUIApplication) -> DarwinElementData {
+        var elements: [String: DarwinElementFrame] = [:]
+
+        // Query all descendants with accessibility identifiers
+        let allElements = app.descendants(matching: .any).allElementsBoundByIndex
+
+        for element in allElements {
+            // Only capture elements with non-empty identifiers that exist
+            guard element.exists,
+                  !element.identifier.isEmpty else { continue }
+
+            let frame = element.frame
+
+            // Skip elements with zero or invalid frames
+            guard frame.width > 0, frame.height > 0,
+                  frame.origin.x.isFinite, frame.origin.y.isFinite else { continue }
+
+            elements[element.identifier] = DarwinElementFrame(
+                x: frame.origin.x,
+                y: frame.origin.y,
+                width: frame.width,
+                height: frame.height
+            )
+        }
+
+        // Get device/screen info for coordinate scaling
+        let screenBounds = XCUIScreen.main.screenshot().image.size
+
+        return DarwinElementData(
+            device: DarwinDeviceInfo(
+                width: screenBounds.width,
+                height: screenBounds.height,
+                scale: UIScreen.main.scale
+            ),
+            elements: elements
+        )
+    }
+
+    /// Save element coordinates to JSON file
+    private func saveElementCoordinates(_ data: DarwinElementData, name: String, folder: String) {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+
+        guard let jsonData = try? encoder.encode(data),
+              let jsonString = String(data: jsonData, encoding: .utf8) else {
+            print("[Darwin] Failed to encode element data for: \(name)")
+            return
+        }
+
+        saveToFile(jsonString, name: "\(name)_elements", extension: "json", folder: folder)
+    }
+
+    /// Generic file saving helper
+    private func saveToFile(_ content: String, name: String, extension ext: String, folder: String) {
+        guard let data = content.data(using: .utf8) else { return }
+
+        let screenshotDir = getOutputDirectory(folder: folder)
+        guard let dir = screenshotDir else { return }
+
+        let filePath = "\(dir)/\(name).\(ext)"
+
+        do {
+            try data.write(to: URL(fileURLWithPath: filePath))
+            print("[Darwin] Saved: \(filePath)")
+        } catch {
+            print("[Darwin] Failed to save \(filePath): \(error)")
+        }
+    }
+
+    /// Get the output directory, creating if needed
+    private func getOutputDirectory(folder: String) -> String? {
+        let screenshotDir: String
+        if let outputDir = ProcessInfo.processInfo.environment["SCREENSHOT_OUTPUT_DIR"] {
+            screenshotDir = outputDir
+        } else if let envDir = ProcessInfo.processInfo.environment["PROJECT_DIR"] {
+            screenshotDir = "\(envDir)/\(folder)"
+        } else if let srcRoot = ProcessInfo.processInfo.environment["SRCROOT"] {
+            screenshotDir = "\(srcRoot)/\(folder)"
+        } else {
+            print("[Darwin] Warning: Could not determine output directory.")
+            return nil
+        }
+
+        let fileManager = FileManager.default
+        if !fileManager.fileExists(atPath: screenshotDir) {
+            do {
+                try fileManager.createDirectory(
+                    atPath: screenshotDir,
+                    withIntermediateDirectories: true,
+                    attributes: nil
+                )
+            } catch {
+                print("[Darwin] Failed to create directory: \(error)")
+                return nil
+            }
+        }
+
+        return screenshotDir
+    }
+
     /// Take a screenshot with a delay (for animations)
     func takeScreenshotAfterDelay(_ name: String, delay: TimeInterval = 1.0) {
         Thread.sleep(forTimeInterval: delay)
         takeScreenshot(name)
+    }
+
+    /// Take a screenshot with elements after a delay (for animations)
+    func takeScreenshotWithElementsAfterDelay(_ name: String, app: XCUIApplication, delay: TimeInterval = 1.0) {
+        Thread.sleep(forTimeInterval: delay)
+        takeScreenshotWithElements(name, app: app)
     }
 
     private func saveScreenshotToFile(_ image: UIImage, name: String, folder: String) {
@@ -42,41 +177,9 @@ extension XCTestCase {
             return
         }
 
-        // Get screenshot output directory from environment
-        // Darwin sets SCREENSHOT_OUTPUT_DIR when running tests
-        let screenshotDir: String
-        if let outputDir = ProcessInfo.processInfo.environment["SCREENSHOT_OUTPUT_DIR"] {
-            // Direct output directory from darwin capture script
-            screenshotDir = outputDir
-        } else if let envDir = ProcessInfo.processInfo.environment["PROJECT_DIR"] {
-            screenshotDir = "\(envDir)/\(folder)"
-        } else if let srcRoot = ProcessInfo.processInfo.environment["SRCROOT"] {
-            screenshotDir = "\(srcRoot)/\(folder)"
-        } else {
-            // Fallback: can't determine directory
-            print("[Darwin] Warning: Could not determine screenshot directory.")
-            print("[Darwin] Set PROJECT_DIR or SRCROOT environment variable.")
-            return
-        }
+        guard let dir = getOutputDirectory(folder: folder) else { return }
 
-        let fileManager = FileManager.default
-
-        // Create directory if needed
-        if !fileManager.fileExists(atPath: screenshotDir) {
-            do {
-                try fileManager.createDirectory(
-                    atPath: screenshotDir,
-                    withIntermediateDirectories: true,
-                    attributes: nil
-                )
-                print("[Darwin] Created directory: \(screenshotDir)")
-            } catch {
-                print("[Darwin] Failed to create directory: \(error)")
-                return
-            }
-        }
-
-        let filePath = "\(screenshotDir)/\(name).png"
+        let filePath = "\(dir)/\(name).png"
 
         do {
             try data.write(to: URL(fileURLWithPath: filePath))
@@ -85,6 +188,29 @@ extension XCTestCase {
             print("[Darwin] Failed to save: \(error)")
         }
     }
+}
+
+// MARK: - Darwin Element Data Models
+
+/// Device information for coordinate scaling
+struct DarwinDeviceInfo: Codable {
+    let width: CGFloat
+    let height: CGFloat
+    let scale: CGFloat
+}
+
+/// Frame coordinates for a UI element
+struct DarwinElementFrame: Codable {
+    let x: CGFloat
+    let y: CGFloat
+    let width: CGFloat
+    let height: CGFloat
+}
+
+/// Complete element data for a screenshot
+struct DarwinElementData: Codable {
+    let device: DarwinDeviceInfo
+    let elements: [String: DarwinElementFrame]
 }
 
 // MARK: - Screenshot Naming Helpers

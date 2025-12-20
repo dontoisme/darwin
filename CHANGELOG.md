@@ -2,6 +2,17 @@
 
 All notable changes to Darwin will be documented in this file.
 
+## [1.3.0] - 2025-12-20
+
+### Added
+- **AI coding rules** — `darwin ai-rules` generates rules for Claude Code and Cursor to write Darwin-compatible code
+- **FTUE AI rules prompt** — `darwin init` now asks if you want AI rules during setup
+- **--with-ai-rules flag** — `darwin init --with-ai-rules` for non-interactive setup
+
+### Files Generated
+- `CLAUDE.md` — Rules for Claude Code (accessibility identifiers, NavigationLink patterns, XCUITest conventions)
+- `.cursorrules` — Rules for Cursor (same patterns in Cursor format)
+
 ## [1.2.0] - 2025-12-19
 
 ### Added
@@ -47,6 +58,7 @@ All notable changes to Darwin will be documented in this file.
 - **Git-aware** — Organized by commit, tracks source file → screen mapping
 - Homebrew installation support
 
+[1.3.0]: https://github.com/dontoisme/darwin/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/dontoisme/darwin/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/dontoisme/darwin/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/dontoisme/darwin/releases/tag/v1.0.0

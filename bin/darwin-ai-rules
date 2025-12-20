@@ -1,0 +1,231 @@
+#!/bin/bash
+#
+# darwin-ai-rules
+#
+# Generate AI coding assistant rules for Darwin-compatible code.
+# Creates CLAUDE.md for Claude Code and .cursorrules for Cursor.
+#
+# Usage:
+#   darwin ai-rules                    # Interactive - detect and prompt
+#   darwin ai-rules --tool claude      # Generate Claude Code rules only
+#   darwin ai-rules --tool cursor      # Generate Cursor rules only
+#   darwin ai-rules --tool all         # Generate all rules
+#
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TEMPLATES_DIR="$SCRIPT_DIR/../templates/ai-rules"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# Options
+TOOL=""
+FROM_INIT=false
+SKIP_PROMPTS=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --tool|-t)
+            TOOL="$2"
+            shift 2
+            ;;
+        --from-init)
+            FROM_INIT=true
+            shift
+            ;;
+        --yes|-y)
+            SKIP_PROMPTS=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: darwin ai-rules [OPTIONS]"
+            echo ""
+            echo "Generate AI coding assistant rules for Darwin-compatible code."
+            echo ""
+            echo "Options:"
+            echo "  --tool, -t TOOL   Generate rules for specific tool: claude, cursor, all"
+            echo "  --yes, -y         Skip prompts, generate all detected"
+            echo "  --help            Show this help"
+            echo ""
+            echo "Output files:"
+            echo "  CLAUDE.md      - Rules for Claude Code"
+            echo "  .cursorrules   - Rules for Cursor"
+            echo ""
+            echo "Examples:"
+            echo "  darwin ai-rules               # Interactive mode"
+            echo "  darwin ai-rules --tool claude # Claude Code only"
+            echo "  darwin ai-rules --tool all    # Generate all"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}"
+            exit 1
+            ;;
+    esac
+done
+
+# Print header unless called from init
+if [ "$FROM_INIT" != true ]; then
+    echo ""
+    echo -e "${GREEN}🧬 Darwin - AI Rules Setup${NC}"
+    echo ""
+fi
+
+# Detect AI tools in use
+detect_claude() {
+    [ -d ".claude" ] && return 0
+    [ -f "CLAUDE.md" ] && return 0
+    return 1
+}
+
+detect_cursor() {
+    [ -d ".cursor" ] && return 0
+    [ -f ".cursorrules" ] && return 0
+    return 1
+}
+
+# Generate CLAUDE.md
+generate_claude() {
+    if [ -f "CLAUDE.md" ]; then
+        if [ "$SKIP_PROMPTS" != true ] && [ "$FROM_INIT" != true ]; then
+            echo -e "${YELLOW}CLAUDE.md already exists.${NC}"
+            read -p "Overwrite? [y/N]: " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                echo "  Skipped CLAUDE.md"
+                return 0
+            fi
+        fi
+    fi
+
+    cp "$TEMPLATES_DIR/claude-code.md" "CLAUDE.md"
+    echo -e "  ${GREEN}✓${NC} Created CLAUDE.md"
+}
+
+# Generate .cursorrules
+generate_cursor() {
+    if [ -f ".cursorrules" ]; then
+        if [ "$SKIP_PROMPTS" != true ] && [ "$FROM_INIT" != true ]; then
+            echo -e "${YELLOW}.cursorrules already exists.${NC}"
+            read -p "Overwrite? [y/N]: " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                echo "  Skipped .cursorrules"
+                return 0
+            fi
+        fi
+    fi
+
+    cp "$TEMPLATES_DIR/cursor.md" ".cursorrules"
+    echo -e "  ${GREEN}✓${NC} Created .cursorrules"
+}
+
+# Main logic
+if [ -n "$TOOL" ]; then
+    # Specific tool requested
+    case "$TOOL" in
+        claude)
+            echo "Creating AI rules..."
+            generate_claude
+            ;;
+        cursor)
+            echo "Creating AI rules..."
+            generate_cursor
+            ;;
+        all)
+            echo "Creating AI rules..."
+            generate_claude
+            generate_cursor
+            ;;
+        *)
+            echo -e "${RED}Unknown tool: $TOOL${NC}"
+            echo "Valid options: claude, cursor, all"
+            exit 1
+            ;;
+    esac
+else
+    # Interactive mode - detect and prompt
+    DETECTED_CLAUDE=false
+    DETECTED_CURSOR=false
+
+    if detect_claude; then
+        DETECTED_CLAUDE=true
+    fi
+
+    if detect_cursor; then
+        DETECTED_CURSOR=true
+    fi
+
+    if [ "$DETECTED_CLAUDE" = true ] || [ "$DETECTED_CURSOR" = true ]; then
+        echo "Detected AI tools:"
+        [ "$DETECTED_CLAUDE" = true ] && echo -e "  ${GREEN}✓${NC} Claude Code"
+        [ "$DETECTED_CURSOR" = true ] && echo -e "  ${GREEN}✓${NC} Cursor"
+        echo ""
+    else
+        echo "No AI tools detected in this directory."
+        echo ""
+    fi
+
+    GENERATE_CLAUDE=false
+    GENERATE_CURSOR=false
+
+    if [ "$SKIP_PROMPTS" = true ]; then
+        # Generate all detected, or all if none detected
+        if [ "$DETECTED_CLAUDE" = true ] || [ "$DETECTED_CURSOR" = false ]; then
+            GENERATE_CLAUDE=true
+        fi
+        if [ "$DETECTED_CURSOR" = true ] || [ "$DETECTED_CLAUDE" = false ]; then
+            GENERATE_CURSOR=true
+        fi
+    else
+        # Prompt for each
+        if [ "$DETECTED_CLAUDE" = true ]; then
+            read -p "Generate rules for Claude Code? [Y/n]: " -n 1 -r
+            echo
+            [[ ! $REPLY =~ ^[Nn]$ ]] && GENERATE_CLAUDE=true
+        else
+            read -p "Generate rules for Claude Code? [y/N]: " -n 1 -r
+            echo
+            [[ $REPLY =~ ^[Yy]$ ]] && GENERATE_CLAUDE=true
+        fi
+
+        if [ "$DETECTED_CURSOR" = true ]; then
+            read -p "Generate rules for Cursor? [Y/n]: " -n 1 -r
+            echo
+            [[ ! $REPLY =~ ^[Nn]$ ]] && GENERATE_CURSOR=true
+        else
+            read -p "Generate rules for Cursor? [y/N]: " -n 1 -r
+            echo
+            [[ $REPLY =~ ^[Yy]$ ]] && GENERATE_CURSOR=true
+        fi
+    fi
+
+    if [ "$GENERATE_CLAUDE" = false ] && [ "$GENERATE_CURSOR" = false ]; then
+        echo "No rules generated."
+        exit 0
+    fi
+
+    echo ""
+    echo "Creating AI rules..."
+
+    [ "$GENERATE_CLAUDE" = true ] && generate_claude
+    [ "$GENERATE_CURSOR" = true ] && generate_cursor
+fi
+
+# Success message
+echo ""
+echo -e "${GREEN}Your AI coding assistant will now:${NC}"
+echo "  • Add accessibility identifiers to interactive elements"
+echo "  • Use NavigationLink patterns Darwin can parse"
+echo "  • Follow Darwin screenshot test conventions"
+echo ""
+echo -e "${CYAN}Test it:${NC} Ask your AI to \"add a settings button that navigates to SettingsView\""
+echo ""

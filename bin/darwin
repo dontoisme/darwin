@@ -9,7 +9,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VERSION="1.2.0"
+VERSION="1.3.0"
 
 # Colors for output
 RED='\033[0;31m'
@@ -38,6 +38,7 @@ print_usage() {
     echo "  hook        Install/manage git hooks for auto-capture"
     echo "  manifest    Sync manifest with tests (generate stubs)"
     echo "  detect      Auto-detect new SwiftUI views"
+    echo "  ai-rules    Generate AI coding assistant rules (Claude/Cursor)"
     echo "  version     Show version"
     echo "  help        Show this help message"
     echo ""
@@ -114,6 +115,10 @@ case "${1:-}" in
     detect)
         shift
         exec "$SCRIPT_DIR/darwin-detect" "$@"
+        ;;
+    ai-rules)
+        shift
+        exec "$SCRIPT_DIR/darwin-ai-rules" "$@"
         ;;
     version|--version|-v)
         echo "darwin $VERSION"

@@ -360,6 +360,66 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         .toggle-btn:hover { color: var(--text); }
         .toggle-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 
+        .layer-btn {
+            padding: 2px 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            border-radius: 3px;
+            font-size: 10px;
+            cursor: pointer;
+        }
+        .layer-btn:hover { color: var(--text); }
+        .layer-btn.active { background: var(--accent-green); color: var(--bg); border-color: var(--accent-green); }
+        .layer-btn[data-layer="sheet"].active { background: var(--accent-purple); border-color: var(--accent-purple); }
+        .layer-btn[data-layer="state"].active { background: var(--accent-yellow); border-color: var(--accent-yellow); color: var(--bg); }
+
+        /* Edit Mode */
+        body.edit-mode .connection {
+            cursor: pointer;
+            pointer-events: stroke;
+        }
+        body.edit-mode .connection:hover {
+            stroke-width: 8;
+            filter: drop-shadow(0 0 4px currentColor);
+        }
+        body.edit-mode .connection.selected {
+            stroke: var(--accent) !important;
+            stroke-width: 6;
+            filter: drop-shadow(0 0 6px var(--accent));
+        }
+        .edit-info-panel {
+            position: fixed;
+            bottom: 120px;
+            left: 24px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            min-width: 280px;
+            z-index: 200;
+            display: none;
+        }
+        body.edit-mode .edit-info-panel { display: block; }
+        .edit-info-panel h3 {
+            margin: 0 0 12px 0;
+            color: var(--accent);
+            font-size: 14px;
+        }
+        .edit-info-panel .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        .edit-info-panel .info-label {
+            color: var(--text-muted);
+        }
+        .edit-info-panel .info-value {
+            color: var(--text);
+            font-family: monospace;
+        }
+
         /* Main content */
         .main {
             padding-top: 60px;
@@ -545,11 +605,24 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             stroke-linecap: round;
         }
         .connection.hidden { opacity: 0; }
+        .connection.has-element {
+            stroke: var(--accent-green);
+            stroke-width: 4;
+        }
+        .connection.missing-element {
+            stroke: var(--accent-yellow);
+            stroke-dasharray: 8 4;
+            opacity: 0.6;
+        }
         .connection-arrow {
             fill: var(--accent-red);
             opacity: 0.9;
         }
         .connection-arrow.hidden { opacity: 0; }
+        .connection.has-element + .connection-arrow,
+        .connection.has-element ~ .connection-arrow[data-from] {
+            fill: var(--accent-green);
+        }
 
         /* Map Timeline Controls */
         .map-timeline {
@@ -1051,8 +1124,15 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             </div>
             <div class="filter-divider"></div>
             <button class="toggle-btn active" id="showFlowsBtn" onclick="toggleFlows()">Flows</button>
+            <div class="layer-toggles" id="layerToggles" style="display: inline-flex; gap: 4px; margin-left: 8px;">
+                <button class="layer-btn active" data-layer="navigation" onclick="toggleLayer('navigation')" title="Screen navigation">Nav</button>
+                <button class="layer-btn active" data-layer="sheet" onclick="toggleLayer('sheet')" title="Sheet/modal presentations">Sheet</button>
+                <button class="layer-btn" data-layer="state" onclick="toggleLayer('state')" title="State changes">State</button>
+            </div>
             <div class="filter-divider"></div>
             <button class="toggle-btn" id="unfadeBtn" onclick="toggleUnfade()">Show All</button>
+            <div class="filter-divider"></div>
+            <button class="toggle-btn" id="editModeBtn" onclick="toggleEditMode()">Edit Paths</button>
         </div>
         <div class="header-controls">
             <select class="capture-select" id="captureSelect"></select>
@@ -1064,6 +1144,19 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
     <main class="main" id="main">
         <!-- Content rendered by JS -->
     </main>
+
+    <!-- Edit Mode Info Panel -->
+    <div class="edit-info-panel" id="editInfoPanel">
+        <h3>Selected Connection</h3>
+        <div id="editInfoContent">
+            <div class="info-row">
+                <span class="info-label">Click a connection to select it</span>
+            </div>
+        </div>
+        <div id="editActions" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
+            <button class="toggle-btn" onclick="resetConnectionPath()" style="font-size: 11px;">Reset to Auto</button>
+        </div>
+    </div>
 
     <div class="modal-overlay" id="modal">
         <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -1151,8 +1244,88 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         // Screen positions for map
         const screenPositions = {};
 
+        // Element coordinates per capture: { captureId: { screenId: { elementId: {x,y,w,h} } } }
+        const elementCoordsCache = {};
+
+        // Device dimensions per capture for coordinate scaling
+        const deviceDimensionsCache = {};
+
         // Cache for tracking which screens exist in each capture
         const captureScreensCache = {};
+
+        // Helper: Parse a flows_to entry (handles both string and object formats)
+        function parseFlowTarget(flowEntry) {
+            if (typeof flowEntry === 'string') {
+                return { target: flowEntry, element: null, type: 'navigation' };
+            }
+            return {
+                target: flowEntry.target,
+                element: flowEntry.element || null,
+                type: flowEntry.type || 'navigation'
+            };
+        }
+
+        // Helper: Get all flows from a screen (normalized format)
+        function getScreenFlows(screen) {
+            if (!screen.flows_to) return [];
+            return screen.flows_to.map(parseFlowTarget);
+        }
+
+        // Load element coordinates for a capture (async, caches result)
+        async function loadElementCoordinates(captureId, screenId) {
+            const cacheKey = `${captureId}:${screenId}`;
+            if (elementCoordsCache[cacheKey] !== undefined) {
+                return elementCoordsCache[cacheKey];
+            }
+
+            try {
+                const url = `${CAPTURES_DIR}/${captureId}/${screenId}_elements.json`;
+                const response = await fetch(url);
+                if (!response.ok) {
+                    elementCoordsCache[cacheKey] = null;
+                    return null;
+                }
+                const data = await response.json();
+                elementCoordsCache[cacheKey] = data.elements || {};
+
+                // Cache device dimensions for scaling
+                if (data.device) {
+                    deviceDimensionsCache[cacheKey] = data.device;
+                }
+
+                return elementCoordsCache[cacheKey];
+            } catch (e) {
+                elementCoordsCache[cacheKey] = null;
+                return null;
+            }
+        }
+
+        // Get element coordinates for an element on a screen (sync, from cache)
+        function getElementCoords(captureId, screenId, elementId) {
+            const cacheKey = `${captureId}:${screenId}`;
+            const coords = elementCoordsCache[cacheKey];
+            if (!coords || !coords[elementId]) return null;
+            return coords[elementId];
+        }
+
+        // Get device dimensions for coordinate scaling
+        function getDeviceDimensions(captureId, screenId) {
+            const cacheKey = `${captureId}:${screenId}`;
+            return deviceDimensionsCache[cacheKey] || { width: 393, height: 852, scale: 3 };
+        }
+
+        // Preload element coordinates for all screens in a capture
+        async function preloadElementCoordinates(captureId) {
+            if (!captureId) return;
+
+            const promises = [];
+            for (const screenId of Object.keys(MANIFEST.screens)) {
+                promises.push(loadElementCoordinates(captureId, screenId));
+            }
+
+            // Load all in parallel, ignore failures (missing files are OK)
+            await Promise.allSettled(promises);
+        }
 
         // Filter state
         let activeGroups = new Set(); // empty = all groups shown
@@ -1160,6 +1333,136 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         let showFlows = true;
         let showAllScreens = false; // when true, don't fade unchanged screens
         let layoutDirection = 'vertical'; // 'horizontal' or 'vertical'
+
+        // Layer filter state (which flow types to show)
+        let activeLayers = new Set(['navigation', 'sheet']); // default: nav and sheet visible
+
+        function toggleLayer(layerType) {
+            const btn = document.querySelector(`.layer-btn[data-layer="${layerType}"]`);
+            if (activeLayers.has(layerType)) {
+                activeLayers.delete(layerType);
+                btn.classList.remove('active');
+            } else {
+                activeLayers.add(layerType);
+                btn.classList.add('active');
+            }
+            applyLayerFilter();
+        }
+
+        function applyLayerFilter() {
+            document.querySelectorAll('.connection, .connection-arrow').forEach(el => {
+                const flowType = el.dataset.flowType || 'navigation';
+                const shouldShow = showFlows && activeLayers.has(flowType);
+                el.classList.toggle('hidden', !shouldShow);
+            });
+        }
+
+        // Edit Mode state
+        let editMode = false;
+        let selectedConnection = null;
+        let pathOverrides = {}; // { "from::to": { waypoints: [...] } }
+
+        function toggleEditMode() {
+            editMode = !editMode;
+            document.body.classList.toggle('edit-mode', editMode);
+            document.getElementById('editModeBtn').classList.toggle('active', editMode);
+
+            if (editMode) {
+                setupConnectionClickHandlers();
+                updateEditInfoPanel(null);
+            } else {
+                clearConnectionSelection();
+            }
+        }
+
+        function setupConnectionClickHandlers() {
+            document.querySelectorAll('.connection').forEach(path => {
+                path.addEventListener('click', handleConnectionClick);
+            });
+        }
+
+        function handleConnectionClick(e) {
+            e.stopPropagation();
+            const path = e.target;
+            const from = path.dataset.from;
+            const to = path.dataset.to;
+
+            // Clear previous selection
+            clearConnectionSelection();
+
+            // Select this connection
+            path.classList.add('selected');
+            selectedConnection = { from, to, element: path };
+
+            // Update info panel
+            updateEditInfoPanel(selectedConnection);
+        }
+
+        function clearConnectionSelection() {
+            document.querySelectorAll('.connection.selected').forEach(el => {
+                el.classList.remove('selected');
+            });
+            selectedConnection = null;
+            updateEditInfoPanel(null);
+        }
+
+        function updateEditInfoPanel(conn) {
+            const content = document.getElementById('editInfoContent');
+            const actions = document.getElementById('editActions');
+
+            if (!conn) {
+                content.innerHTML = `
+                    <div class="info-row">
+                        <span class="info-label">Click a connection to select it</span>
+                    </div>
+                `;
+                actions.style.display = 'none';
+                return;
+            }
+
+            const fromScreen = MANIFEST.screens[conn.from];
+            const toScreen = MANIFEST.screens[conn.to];
+            const flowType = conn.element.dataset.flowType || 'navigation';
+            const elemId = conn.element.dataset.element || 'none';
+            const hasElement = conn.element.classList.contains('has-element');
+
+            content.innerHTML = `
+                <div class="info-row">
+                    <span class="info-label">From</span>
+                    <span class="info-value">${fromScreen?.name || conn.from}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">To</span>
+                    <span class="info-value">${toScreen?.name || conn.to}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Type</span>
+                    <span class="info-value">${flowType}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Element</span>
+                    <span class="info-value" style="color: ${hasElement ? 'var(--accent-green)' : 'var(--text-muted)'}">${elemId}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Status</span>
+                    <span class="info-value">${hasElement ? 'Coordinates found' : 'Using fallback position'}</span>
+                </div>
+            `;
+            actions.style.display = 'block';
+        }
+
+        function resetConnectionPath() {
+            if (!selectedConnection) return;
+
+            const key = `${selectedConnection.from}::${selectedConnection.to}`;
+            delete pathOverrides[key];
+
+            // Re-render connections to apply reset
+            renderMapConnections();
+
+            // Re-select after re-render
+            setupConnectionClickHandlers();
+        }
 
         function init() {
             populateCaptureSelects();
@@ -1305,9 +1608,12 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             showFlows = !showFlows;
             const btn = document.getElementById('showFlowsBtn');
             btn.classList.toggle('active', showFlows);
-            document.querySelectorAll('.connection, .connection-arrow').forEach(el => {
-                el.classList.toggle('hidden', !showFlows);
-            });
+            // Show/hide layer toggles based on flows visibility
+            const layerToggles = document.getElementById('layerToggles');
+            if (layerToggles) {
+                layerToggles.style.display = showFlows ? 'inline-flex' : 'none';
+            }
+            applyLayerFilter();
         }
 
         function setLayout(direction) {
@@ -1585,7 +1891,18 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             `;
 
             renderMapScreens();
-            renderMapConnections();
+
+            // Preload element coordinates for current capture, then render connections
+            const captures = INDEX.captures || [];
+            const currentCapture = captures[mapTimelineIdx] || captures[captures.length - 1];
+            if (currentCapture) {
+                preloadElementCoordinates(currentCapture.id).then(() => {
+                    renderMapConnections();
+                });
+            } else {
+                renderMapConnections();
+            }
+
             setupMapControls();
 
             // Set responsive initial scale and position based on viewport
@@ -1797,16 +2114,28 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             svg.setAttribute('width', maxX + 400);
             svg.setAttribute('height', maxY + 400);
 
+            // Get current capture for element coordinates
+            const captures = INDEX.captures || [];
+            const currentCapture = captures[mapTimelineIdx] || captures[captures.length - 1];
+            const captureId = currentCapture ? currentCapture.id : null;
+
             // Build connection map to detect bi-directional flows
+            // Now uses parseFlowTarget for element-aware flows
             const flowMap = {};
             for (const [screenId, screen] of Object.entries(MANIFEST.screens)) {
-                if (!screen.flows_to) continue;
-                for (const targetId of screen.flows_to) {
+                const flows = getScreenFlows(screen);
+                for (const flow of flows) {
+                    const targetId = flow.target;
                     const key = [screenId, targetId].sort().join('::');
                     if (!flowMap[key]) {
                         flowMap[key] = { screens: [screenId, targetId].sort(), directions: [] };
                     }
-                    flowMap[key].directions.push({ from: screenId, to: targetId });
+                    flowMap[key].directions.push({
+                        from: screenId,
+                        to: targetId,
+                        element: flow.element,
+                        type: flow.type
+                    });
                 }
             }
 
@@ -1832,12 +2161,19 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
                 const fromPos = aIsHigher ? posA : posB;
                 const toPos = aIsHigher ? posB : posA;
 
+                // Find the flow direction info for the from->to direction
+                const forwardFlow = flow.directions.find(d => d.from === fromScreen && d.to === toScreen);
+                const reverseFlow = flow.directions.find(d => d.from === toScreen && d.to === fromScreen);
+
                 connections.push({
                     from: fromScreen,
                     to: toScreen,
                     fromPos,
                     toPos,
-                    bidirectional: isBidirectional
+                    bidirectional: isBidirectional,
+                    element: forwardFlow ? forwardFlow.element : null,
+                    reverseElement: reverseFlow ? reverseFlow.element : null,
+                    flowType: forwardFlow ? forwardFlow.type : 'navigation'
                 });
             }
 
@@ -1849,10 +2185,31 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             });
 
             // Draw connections
-            connections.forEach(({ from: screenId, to: targetId, fromPos, toPos, bidirectional }) => {
-                // Exit from bottom center of source
-                const fromX = fromPos.x + fromPos.width / 2;
-                const fromY = fromPos.y + fromPos.height;
+            connections.forEach(({ from: screenId, to: targetId, fromPos, toPos, bidirectional, element, reverseElement, flowType }) => {
+                // Calculate start position - use element if available
+                let fromX, fromY;
+                let hasElementCoords = false;
+
+                if (element && captureId) {
+                    const elemCoords = getElementCoords(captureId, screenId, element);
+                    if (elemCoords) {
+                        // Scale from device coordinates to map thumbnail coordinates
+                        const device = getDeviceDimensions(captureId, screenId);
+                        const scaleX = fromPos.width / device.width;
+                        const scaleY = fromPos.height / device.height;
+
+                        // Element center in map coordinates
+                        fromX = fromPos.x + (elemCoords.x + elemCoords.width / 2) * scaleX;
+                        fromY = fromPos.y + (elemCoords.y + elemCoords.height / 2) * scaleY;
+                        hasElementCoords = true;
+                    }
+                }
+
+                if (!hasElementCoords) {
+                    // Fallback: Exit from bottom center of source
+                    fromX = fromPos.x + fromPos.width / 2;
+                    fromY = fromPos.y + fromPos.height;
+                }
 
                 // Enter at top center of destination
                 const toX = toPos.x + toPos.width / 2;
@@ -1861,7 +2218,7 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
                 const dx = toX - fromX;
                 const dy = toY - fromY;
 
-                const dropDistance = 50;
+                const dropDistance = hasElementCoords ? 30 : 50;
                 const approachDistance = 40;
 
                 let pathD;
@@ -1886,9 +2243,18 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
 
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 path.setAttribute('d', pathD);
-                path.setAttribute('class', 'connection' + (bidirectional ? ' bidirectional' : ''));
+
+                // Build class list with flow type and element status
+                let pathClass = 'connection';
+                if (bidirectional) pathClass += ' bidirectional';
+                if (hasElementCoords) pathClass += ' has-element';
+                if (!hasElementCoords && element) pathClass += ' missing-element';
+                path.setAttribute('class', pathClass);
+
                 path.dataset.from = screenId;
                 path.dataset.to = targetId;
+                path.dataset.flowType = flowType;
+                if (element) path.dataset.element = element;
                 svg.appendChild(path);
 
                 // Arrow at destination (pointing down into target)
@@ -2680,16 +3046,96 @@ TEMP_FILE=$(mktemp)
 sed "s|__INDEX_JSON__|${INDEX_ESCAPED}|g" "$OUTPUT_FILE" > "$TEMP_FILE"
 mv "$TEMP_FILE" "$OUTPUT_FILE"
 
+# Generate JSON export for AI analysis
+JSON_EXPORT_FILE="$SCREENSHOT_DIR/darwin-export.json"
+echo "Generating JSON export for AI analysis..."
+
+# Build flow edges from manifest
+FLOW_EDGES=$(echo "$MANIFEST_JSON" | jq '[
+    .screens | to_entries[] |
+    .key as $from |
+    (.value.flows_to // [])[] |
+    if type == "string" then
+        { from: $from, to: ., element: null, type: "navigation" }
+    else
+        { from: $from, to: .target, element: .element, type: (.type // "navigation") }
+    end
+]')
+
+# Build screen nodes
+SCREEN_NODES=$(echo "$MANIFEST_JSON" | jq '[
+    .screens | to_entries[] | {
+        id: .key,
+        name: .value.name,
+        description: (.value.description // null),
+        sources: (.value.sources // [])
+    }
+]')
+
+# Build capture data with change info
+CAPTURE_DATA=$(echo "$INDEX_JSON" | jq --argjson changes "$CHANGE_DATA" '
+    .captures | map({
+        id: .id,
+        commit: (.commit // .commitFull // "unknown"),
+        timestamp: .timestamp,
+        changes: ($changes[.id] // {})
+    })
+')
+
+# Generate the complete export JSON
+cat > "$JSON_EXPORT_FILE" << JSONEOF
+{
+  "version": "1.0",
+  "exportedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "manifest": {
+    "version": $(echo "$MANIFEST_JSON" | jq '.version // "1.0"'),
+    "description": $(echo "$MANIFEST_JSON" | jq '.description // ""'),
+    "changeThreshold": $CHANGE_THRESHOLD
+  },
+  "flow": {
+    "nodes": $SCREEN_NODES,
+    "edges": $FLOW_EDGES,
+    "groups": $(echo "$MANIFEST_JSON" | jq '.groups // {}')
+  },
+  "captures": $CAPTURE_DATA,
+  "timeline": {
+    "captureCount": $(echo "$INDEX_JSON" | jq '.captures | length'),
+    "latestCommit": $(echo "$INDEX_JSON" | jq '.captures[-1].commit // "none"')
+  },
+  "aiHints": {
+    "purpose": "Visual regression tracking and app flow documentation for iOS apps",
+    "useCases": [
+      "Identify what changed visually between commits",
+      "Understand app navigation structure",
+      "Track UI evolution over time",
+      "Find screens affected by source file changes"
+    ],
+    "keyFields": {
+      "flow.nodes": "List of app screens with metadata",
+      "flow.edges": "Navigation connections between screens with tap target elements",
+      "captures": "Timeline of screenshot captures with per-screen change detection",
+      "captures[].changes": "Per-screen change percentages vs previous capture"
+    }
+  }
+}
+JSONEOF
+
 echo ""
 echo -e "${GREEN}=== Viewer Generated ===${NC}"
 echo ""
-echo "Output: $OUTPUT_FILE"
+echo "Outputs:"
+echo "  Viewer: $OUTPUT_FILE"
+echo "  AI JSON: $JSON_EXPORT_FILE"
 echo ""
 echo "Modes:"
 echo "  - Single:    View any capture"
 echo "  - Compare:   Side-by-side diff"
 echo "  - Timelapse: Scrub through timeline"
 echo "  - Map:       App flow visualization"
+echo ""
+echo "AI Export:"
+echo "  The JSON export can be fed to AI for analysis:"
+echo "  ${CYAN}cat $JSON_EXPORT_FILE | pbcopy${NC}"
 echo ""
 
 # Exit early if generate-only mode

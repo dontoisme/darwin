@@ -1,5 +1,5 @@
 {
-  "version": "1.1",
+  "version": "1.2",
   "description": "DinoCodex - Dinosaur Encyclopedia Demo App",
   "changeThreshold": 0.5,
   "screens": {
@@ -8,7 +8,23 @@
       "description": "Featured dinosaurs, search bar, and era quick filters",
       "test": "testScreenshot_01_DiscoverHome",
       "sources": ["DinoCodex/Views/Discover/DiscoverHomeView.swift"],
-      "flows_to": ["02-discover-search", "03-discover-filter", "05-species-detail"]
+      "flows_to": [
+        {
+          "target": "02-discover-search",
+          "element": "discover_search_bar",
+          "type": "navigation"
+        },
+        {
+          "target": "03-discover-filter",
+          "element": "discover_filter_button",
+          "type": "sheet"
+        },
+        {
+          "target": "05-species-detail",
+          "element": "discover_featured_card",
+          "type": "navigation"
+        }
+      ]
     },
     "02-discover-search": {
       "name": "Discover Search",

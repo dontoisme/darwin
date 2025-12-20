@@ -1,0 +1,290 @@
+#!/bin/bash
+#
+# darwin-export
+#
+# Export Darwin map state as structured JSON for AI analysis.
+# Outputs comprehensive data about screens, flows, changes, and timeline.
+#
+# Usage:
+#   darwin export                    # Export to stdout
+#   darwin export --output FILE      # Export to file
+#   darwin export --format json      # JSON format (default)
+#
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LIB_DIR="$SCRIPT_DIR/../lib"
+
+# Source configuration
+if [ -f "$LIB_DIR/config.sh" ]; then
+    source "$LIB_DIR/config.sh"
+fi
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Try to load config
+if load_config 2>/dev/null; then
+    SCREENSHOT_DIR="$CONFIG_OUTPUT_PATH"
+    MANIFEST_FILE="$CONFIG_MANIFEST_PATH"
+else
+    SCREENSHOT_DIR="$(pwd)/Screenshots"
+    MANIFEST_FILE="$(pwd)/Screenshots/manifest.json"
+fi
+
+INDEX_FILE="$SCREENSHOT_DIR/index.json"
+OUTPUT_FILE=""
+FORMAT="json"
+VERBOSE=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --output|-o)
+            OUTPUT_FILE="$2"
+            shift 2
+            ;;
+        --format|-f)
+            FORMAT="$2"
+            shift 2
+            ;;
+        --verbose|-v)
+            VERBOSE=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: darwin export [OPTIONS]"
+            echo ""
+            echo "Export Darwin map state as structured JSON for AI analysis."
+            echo ""
+            echo "Options:"
+            echo "  --output, -o FILE   Output file (default: stdout)"
+            echo "  --format, -f FMT    Output format: json (default)"
+            echo "  --verbose, -v       Show progress info"
+            echo "  --help              Show this help"
+            echo ""
+            echo "Output includes:"
+            echo "  - Screen definitions and metadata"
+            echo "  - Flow graph (nodes and edges)"
+            echo "  - Capture timeline with change detection"
+            echo "  - Element coordinates (when available)"
+            echo "  - Significant visual changes"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# Check for required files
+if [ ! -f "$MANIFEST_FILE" ]; then
+    echo -e "${RED}Error: manifest.json not found${NC}" >&2
+    exit 1
+fi
+
+if [ ! -f "$INDEX_FILE" ]; then
+    echo -e "${RED}Error: index.json not found${NC}" >&2
+    exit 1
+fi
+
+[ "$VERBOSE" = true ] && echo -e "${BLUE}🧬 Darwin - Exporting for AI Analysis${NC}" >&2
+[ "$VERBOSE" = true ] && echo "Manifest: $MANIFEST_FILE" >&2
+[ "$VERBOSE" = true ] && echo "Index: $INDEX_FILE" >&2
+
+CAPTURES_DIR="$SCREENSHOT_DIR/captures"
+
+# Read manifest and index
+MANIFEST=$(cat "$MANIFEST_FILE")
+INDEX=$(cat "$INDEX_FILE")
+
+# Get change threshold from manifest
+CHANGE_THRESHOLD=$(echo "$MANIFEST" | jq -r '.changeThreshold // 0.5')
+
+# Build screen nodes
+build_screen_nodes() {
+    echo "$MANIFEST" | jq '[
+        .screens | to_entries[] | {
+            id: .key,
+            name: .value.name,
+            description: (.value.description // null),
+            sources: (.value.sources // []),
+            group: (
+                # Find which group this screen belongs to
+                ($MANIFEST | .groups // {} | to_entries[] | select(.value.screens | index(.key)) | .key) // null
+            )
+        }
+    ]' --argjson MANIFEST "$MANIFEST"
+}
+
+# Build flow edges
+build_flow_edges() {
+    echo "$MANIFEST" | jq '[
+        .screens | to_entries[] |
+        .key as $from |
+        (.value.flows_to // [])[] |
+        if type == "string" then
+            { from: $from, to: ., element: null, type: "navigation" }
+        else
+            { from: $from, to: .target, element: .element, type: (.type // "navigation") }
+        end
+    ]'
+}
+
+# Build capture timeline with change detection
+build_timeline() {
+    local captures
+    captures=$(echo "$INDEX" | jq -c '.captures // []')
+
+    local result="[]"
+    local prev_capture=""
+
+    echo "$captures" | jq -c '.[]' | while read -r capture; do
+        local cap_id=$(echo "$capture" | jq -r '.id')
+        local cap_commit=$(echo "$capture" | jq -r '.commit // .commitFull // "unknown"')
+        local cap_timestamp=$(echo "$capture" | jq -r '.timestamp')
+
+        local screens_data="{}"
+
+        # For each screen in manifest
+        for screen_id in $(echo "$MANIFEST" | jq -r '.screens | keys[]'); do
+            local screen_file="$CAPTURES_DIR/$cap_id/$screen_id.png"
+            local elements_file="$CAPTURES_DIR/$cap_id/${screen_id}_elements.json"
+
+            local screen_entry="{}"
+
+            # Check if screenshot exists
+            if [ -f "$screen_file" ]; then
+                screen_entry=$(echo "$screen_entry" | jq \
+                    --arg file "captures/$cap_id/$screen_id.png" \
+                    '. + { screenshot: $file, exists: true }')
+
+                # Check for element coordinates
+                if [ -f "$elements_file" ]; then
+                    local elements
+                    elements=$(cat "$elements_file" | jq '.elements // {}')
+                    screen_entry=$(echo "$screen_entry" | jq \
+                        --argjson elements "$elements" \
+                        '. + { elements: $elements }')
+                fi
+            else
+                screen_entry=$(echo "$screen_entry" | jq '. + { exists: false }')
+            fi
+
+            screens_data=$(echo "$screens_data" | jq \
+                --arg id "$screen_id" \
+                --argjson entry "$screen_entry" \
+                '. + { ($id): $entry }')
+        done
+
+        # Output capture entry
+        jq -n \
+            --arg id "$cap_id" \
+            --arg commit "$cap_commit" \
+            --arg timestamp "$cap_timestamp" \
+            --argjson screens "$screens_data" \
+            '{
+                id: $id,
+                commit: $commit,
+                timestamp: $timestamp,
+                screens: $screens
+            }'
+    done | jq -s '.'
+}
+
+# Build significant changes summary
+build_significant_changes() {
+    local captures
+    captures=$(echo "$INDEX" | jq -c '.captures // []')
+    local capture_count
+    capture_count=$(echo "$captures" | jq 'length')
+
+    if [ "$capture_count" -lt 2 ]; then
+        echo "[]"
+        return
+    fi
+
+    # This would ideally use stored change data from the viewer
+    # For now, return a placeholder structure
+    echo "[]"
+}
+
+# Build the complete export
+build_export() {
+    local nodes
+    nodes=$(build_screen_nodes)
+
+    local edges
+    edges=$(build_flow_edges)
+
+    local timeline
+    timeline=$(build_timeline)
+
+    local changes
+    changes=$(build_significant_changes)
+
+    local groups
+    groups=$(echo "$MANIFEST" | jq '.groups // {}')
+
+    jq -n \
+        --arg version "1.0" \
+        --arg manifestVersion "$(echo "$MANIFEST" | jq -r '.version // "1.0"')" \
+        --arg description "$(echo "$MANIFEST" | jq -r '.description // ""')" \
+        --argjson changeThreshold "$CHANGE_THRESHOLD" \
+        --argjson nodes "$nodes" \
+        --argjson edges "$edges" \
+        --argjson groups "$groups" \
+        --argjson captures "$timeline" \
+        --argjson significantChanges "$changes" \
+        '{
+            version: $version,
+            exportedAt: (now | strftime("%Y-%m-%dT%H:%M:%SZ")),
+            manifest: {
+                version: $manifestVersion,
+                description: $description,
+                changeThreshold: $changeThreshold
+            },
+            flow: {
+                nodes: $nodes,
+                edges: $edges,
+                groups: $groups
+            },
+            captures: $captures,
+            timeline: {
+                captureCount: ($captures | length),
+                significantChanges: $significantChanges
+            },
+            aiHints: {
+                purpose: "Visual regression tracking and app flow documentation",
+                useCases: [
+                    "Identify what changed visually between commits",
+                    "Understand app navigation structure",
+                    "Track UI evolution over time",
+                    "Find screens affected by source file changes"
+                ],
+                keyFields: {
+                    "flow.nodes": "List of app screens with metadata",
+                    "flow.edges": "Navigation connections between screens",
+                    "captures": "Timeline of screenshot captures with change data",
+                    "timeline.significantChanges": "Filtered list of meaningful visual changes"
+                }
+            }
+        }'
+}
+
+# Generate export
+RESULT=$(build_export)
+
+# Output
+if [ -n "$OUTPUT_FILE" ]; then
+    echo "$RESULT" | jq '.' > "$OUTPUT_FILE"
+    [ "$VERBOSE" = true ] && echo -e "${GREEN}✓ Exported to: $OUTPUT_FILE${NC}" >&2
+else
+    echo "$RESULT" | jq '.'
+fi
