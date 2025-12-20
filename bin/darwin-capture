@@ -447,6 +447,15 @@ if [ -f "$SCRIPT_DIR/darwin-viewer" ]; then
     "$SCRIPT_DIR/darwin-viewer" --generate-only 2>/dev/null
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Viewer updated${NC}"
+
+        # Auto-open viewer if configured
+        if [ "$CONFIG_OPEN_VIEWER" = "true" ]; then
+            VIEWER_PATH="$OUTPUT_DIR/viewer.html"
+            if [ -f "$VIEWER_PATH" ]; then
+                echo -e "${CYAN}Opening viewer...${NC}"
+                open "$VIEWER_PATH" 2>/dev/null || true
+            fi
+        fi
     fi
 fi
 

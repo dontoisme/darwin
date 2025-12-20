@@ -44,8 +44,16 @@ ARG_PROJECT=""
 ARG_SCHEME=""
 ARG_DESTINATION=""
 ARG_TEST_TARGET=""
+ARG_MODE=""
 SKIP_PROMPTS=false
 COPY_TEMPLATES=false
+
+# Automation settings (defaults for Autopilot mode)
+MODE="autopilot"
+DETECT_NEW_VIEWS=true
+ADD_VIEWS_TO_MANIFEST=true
+CAPTURE_AFTER_COMMIT=true
+OPEN_VIEWER_AFTER_CAPTURE=true
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -65,6 +73,10 @@ while [[ $# -gt 0 ]]; do
             ARG_TEST_TARGET="$2"
             shift 2
             ;;
+        --mode)
+            ARG_MODE="$2"
+            shift 2
+            ;;
         --yes|-y)
             SKIP_PROMPTS=true
             shift
@@ -81,14 +93,21 @@ while [[ $# -gt 0 ]]; do
             echo "  --scheme NAME       Build scheme name"
             echo "  --destination DEST  Simulator destination string"
             echo "  --test-target NAME  UI test target name (default: <project>UITests)"
+            echo "  --mode MODE         Automation mode: autopilot, guided, manual, custom"
             echo "  --with-templates    Copy Swift template files to project"
-            echo "  -y, --yes           Skip prompts, use defaults"
+            echo "  -y, --yes           Skip prompts, use Autopilot mode"
             echo "  --help              Show this help"
+            echo ""
+            echo "Modes:"
+            echo "  autopilot   Everything automatic after commits (recommended)"
+            echo "  guided      Prompts after commits - you decide what to run"
+            echo "  manual      You run commands when needed - no automation"
+            echo "  custom      Configure each behavior individually"
             echo ""
             echo "Examples:"
             echo "  darwin init"
             echo "  darwin init --project MyApp.xcodeproj --scheme MyApp"
-            echo "  darwin init --with-templates"
+            echo "  darwin init --mode autopilot --yes"
             exit 0
             ;;
         *)
@@ -182,6 +201,88 @@ if [ "$SKIP_PROMPTS" != true ]; then
     fi
 fi
 
+# Mode selection
+if [ -n "$ARG_MODE" ]; then
+    MODE="$ARG_MODE"
+elif [ "$SKIP_PROMPTS" = true ]; then
+    MODE="autopilot"
+else
+    echo ""
+    echo -e "${CYAN}🧬 How do you want Darwin to work?${NC}"
+    echo ""
+    echo -e "  ${GREEN}[1] Autopilot${NC} (Recommended)"
+    echo "      Everything automatic - detect, capture, view after each commit"
+    echo ""
+    echo "  [2] Guided"
+    echo "      Prompts after commits - you decide what to run"
+    echo ""
+    echo "  [3] Manual"
+    echo "      You run commands when needed - no automation"
+    echo ""
+    echo "  [4] Custom"
+    echo "      Configure each behavior individually"
+    echo ""
+    read -p "Choose [1-4, default=1]: " MODE_CHOICE
+
+    case "$MODE_CHOICE" in
+        2)
+            MODE="guided"
+            DETECT_NEW_VIEWS=true
+            ADD_VIEWS_TO_MANIFEST=false  # Prompt instead
+            CAPTURE_AFTER_COMMIT=false   # Prompt instead
+            OPEN_VIEWER_AFTER_CAPTURE=true
+            ;;
+        3)
+            MODE="manual"
+            DETECT_NEW_VIEWS=false
+            ADD_VIEWS_TO_MANIFEST=false
+            CAPTURE_AFTER_COMMIT=false
+            OPEN_VIEWER_AFTER_CAPTURE=false
+            ;;
+        4)
+            MODE="custom"
+            echo ""
+            echo -e "${CYAN}Configure automation:${NC}"
+
+            read -p "Auto-detect new views after commit? [Y/n]: " RESP
+            case "$RESP" in [Nn]*) DETECT_NEW_VIEWS=false ;; *) DETECT_NEW_VIEWS=true ;; esac
+
+            read -p "Auto-add detected views to manifest? [Y/n]: " RESP
+            case "$RESP" in [Nn]*) ADD_VIEWS_TO_MANIFEST=false ;; *) ADD_VIEWS_TO_MANIFEST=true ;; esac
+
+            read -p "Auto-capture screenshots after commit? [Y/n]: " RESP
+            case "$RESP" in [Nn]*) CAPTURE_AFTER_COMMIT=false ;; *) CAPTURE_AFTER_COMMIT=true ;; esac
+
+            read -p "Auto-open viewer after capture? [Y/n]: " RESP
+            case "$RESP" in [Nn]*) OPEN_VIEWER_AFTER_CAPTURE=false ;; *) OPEN_VIEWER_AFTER_CAPTURE=true ;; esac
+            ;;
+        1|"")
+            # Autopilot mode - ask about viewer
+            MODE="autopilot"
+            DETECT_NEW_VIEWS=true
+            ADD_VIEWS_TO_MANIFEST=true
+            CAPTURE_AFTER_COMMIT=true
+            echo ""
+            echo -e "${CYAN}Viewer preference:${NC}"
+            echo "  [1] Auto-open viewer after each capture (Recommended)"
+            echo "  [2] I'll open viewer manually when needed"
+            read -p "Choose [1-2, default=1]: " VIEWER_CHOICE
+            case "$VIEWER_CHOICE" in
+                2) OPEN_VIEWER_AFTER_CAPTURE=false ;;
+                *) OPEN_VIEWER_AFTER_CAPTURE=true ;;
+            esac
+            ;;
+        *)
+            # Invalid choice - default to Autopilot with auto-open
+            MODE="autopilot"
+            DETECT_NEW_VIEWS=true
+            ADD_VIEWS_TO_MANIFEST=true
+            CAPTURE_AFTER_COMMIT=true
+            OPEN_VIEWER_AFTER_CAPTURE=true
+            ;;
+    esac
+fi
+
 # Create darwin.json
 echo ""
 echo -e "${BLUE}Creating darwin.json...${NC}"
@@ -195,7 +296,14 @@ cat > "darwin.json" << EOF
   "destination": "$DESTINATION",
   "outputDir": "Screenshots",
   "manifest": "Screenshots/manifest.json",
-  "resultsDir": "TestResults"
+  "resultsDir": "TestResults",
+  "mode": "$MODE",
+  "automation": {
+    "detectNewViews": $DETECT_NEW_VIEWS,
+    "addViewsToManifest": $ADD_VIEWS_TO_MANIFEST,
+    "captureAfterCommit": $CAPTURE_AFTER_COMMIT,
+    "openViewerAfterCapture": $OPEN_VIEWER_AFTER_CAPTURE
+  }
 }
 EOF
 
@@ -258,6 +366,42 @@ if [ -f ".gitignore" ]; then
     fi
 fi
 
+# Install git hook based on mode
+install_hook() {
+    if [ "$MODE" = "autopilot" ]; then
+        echo ""
+        echo -e "${BLUE}Installing git hook (auto mode)...${NC}"
+        "$SCRIPT_DIR/darwin-hook" install --auto 2>/dev/null && \
+            echo -e "${GREEN}Installed:${NC} Post-commit hook (autopilot mode)" || \
+            echo -e "${YELLOW}Note:${NC} Could not install hook. Run 'darwin hook install --auto' manually."
+    elif [ "$MODE" = "guided" ]; then
+        echo ""
+        echo -e "${BLUE}Installing git hook (prompt mode)...${NC}"
+        "$SCRIPT_DIR/darwin-hook" install 2>/dev/null && \
+            echo -e "${GREEN}Installed:${NC} Post-commit hook (guided mode)" || \
+            echo -e "${YELLOW}Note:${NC} Could not install hook. Run 'darwin hook install' manually."
+    elif [ "$MODE" = "custom" ]; then
+        # Install hook if any automation is enabled
+        if [ "$CAPTURE_AFTER_COMMIT" = true ] || [ "$DETECT_NEW_VIEWS" = true ]; then
+            echo ""
+            if [ "$CAPTURE_AFTER_COMMIT" = true ] && [ "$ADD_VIEWS_TO_MANIFEST" = true ]; then
+                echo -e "${BLUE}Installing git hook (auto mode)...${NC}"
+                "$SCRIPT_DIR/darwin-hook" install --auto 2>/dev/null && \
+                    echo -e "${GREEN}Installed:${NC} Post-commit hook" || \
+                    echo -e "${YELLOW}Note:${NC} Could not install hook."
+            else
+                echo -e "${BLUE}Installing git hook (prompt mode)...${NC}"
+                "$SCRIPT_DIR/darwin-hook" install 2>/dev/null && \
+                    echo -e "${GREEN}Installed:${NC} Post-commit hook" || \
+                    echo -e "${YELLOW}Note:${NC} Could not install hook."
+            fi
+        fi
+    fi
+    # Manual mode: no hook installed
+}
+
+install_hook
+
 # Summary
 echo ""
 echo -e "${GREEN}=== Darwin Initialized ===${NC}"
@@ -267,18 +411,71 @@ echo "  Project:     $PROJECT"
 echo "  Scheme:      $SCHEME"
 echo "  Test Target: $TEST_TARGET"
 echo "  Destination: $DESTINATION"
+echo "  Mode:        $MODE"
 echo ""
 echo "Created files:"
 echo "  darwin.json              - Configuration file"
 echo "  Screenshots/             - Screenshot output directory"
 echo "  Screenshots/manifest.json - Screen-to-source mapping"
 echo ""
-echo -e "${YELLOW}Next steps:${NC}"
-echo "  1. Edit Screenshots/manifest.json to add your screens"
-echo "  2. Add accessibility identifiers to your views"
-echo "  3. Create $TEST_TARGET/ScreenshotTests.swift"
-echo "  4. Run: darwin capture --baseline"
+
+# Mode-specific next steps
+case "$MODE" in
+    autopilot)
+        echo -e "${GREEN}🚀 You're all set!${NC} Darwin will automatically:"
+        echo "   • Detect new SwiftUI views after commits"
+        echo "   • Add them to manifest and generate test stubs"
+        echo "   • Capture screenshots of affected screens"
+        if [ "$OPEN_VIEWER_AFTER_CAPTURE" = true ]; then
+            echo "   • Open the visual timeline"
+        fi
+        echo ""
+        echo "Just commit as usual - Darwin handles the rest."
+        if [ "$OPEN_VIEWER_AFTER_CAPTURE" = false ]; then
+            echo "Run 'darwin viewer' anytime to see your visual timeline."
+        fi
+        echo ""
+        echo -e "${YELLOW}To capture your baseline now:${NC}"
+        echo "  darwin capture --baseline"
+        ;;
+    guided)
+        echo -e "${CYAN}🎯 Guided mode enabled.${NC} After each commit, Darwin will:"
+        echo "   • Detect new SwiftUI views and prompt to add them"
+        echo "   • Show affected screens and prompt to capture"
+        echo "   • Auto-open the visual timeline after capture"
+        echo ""
+        echo -e "${YELLOW}Next steps:${NC}"
+        echo "  1. Edit Screenshots/manifest.json to add your screens"
+        echo "  2. Run: darwin capture --baseline"
+        ;;
+    manual)
+        echo -e "${BLUE}🛠️  Manual mode enabled.${NC} Run commands when you need them:"
+        echo ""
+        echo "  darwin detect      # Find new SwiftUI views"
+        echo "  darwin capture     # Take screenshots"
+        echo "  darwin viewer      # See visual timeline"
+        echo "  darwin diff        # Compare captures"
+        echo ""
+        echo -e "${YELLOW}Next steps:${NC}"
+        echo "  1. Edit Screenshots/manifest.json to add your screens"
+        echo "  2. Add accessibility identifiers to your views"
+        echo "  3. Create $TEST_TARGET/ScreenshotTests.swift"
+        echo "  4. Run: darwin capture --baseline"
+        ;;
+    custom)
+        echo -e "${CYAN}⚙️  Custom mode configured:${NC}"
+        echo "   • Detect new views:     $DETECT_NEW_VIEWS"
+        echo "   • Auto-add to manifest: $ADD_VIEWS_TO_MANIFEST"
+        echo "   • Capture after commit: $CAPTURE_AFTER_COMMIT"
+        echo "   • Open viewer:          $OPEN_VIEWER_AFTER_CAPTURE"
+        echo ""
+        echo -e "${YELLOW}Next steps:${NC}"
+        echo "  1. Edit Screenshots/manifest.json to add your screens"
+        echo "  2. Run: darwin capture --baseline"
+        ;;
+esac
+
 echo ""
-echo "See: https://github.com/dontoisme/darwin#quickstart"
+echo "See: https://github.com/dontoisme/darwin"
 echo ""
 echo -e "${GREEN}🧬 Ready to evolve!${NC}"

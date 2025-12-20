@@ -63,6 +63,10 @@ load_config() {
         CONFIG_OUTPUT_DIR=$(jq -r '.outputDir // "Screenshots"' "$config_path")
         CONFIG_MANIFEST=$(jq -r '.manifest // "Screenshots/manifest.json"' "$config_path")
         CONFIG_RESULTS_DIR=$(jq -r '.resultsDir // "TestResults"' "$config_path")
+
+        # Automation settings
+        CONFIG_MODE=$(jq -r '.mode // "manual"' "$config_path")
+        CONFIG_OPEN_VIEWER=$(jq -r '.automation.openViewerAfterCapture // false' "$config_path")
     else
         echo -e "${RED}Error: jq is required but not installed.${NC}"
         echo "Install with: brew install jq"
@@ -80,6 +84,7 @@ load_config() {
     export CONFIG_PROJECT CONFIG_SCHEME CONFIG_TEST_TARGET CONFIG_TEST_CLASS
     export CONFIG_DESTINATION CONFIG_OUTPUT_DIR CONFIG_MANIFEST
     export CONFIG_PROJECT_PATH CONFIG_OUTPUT_PATH CONFIG_MANIFEST_PATH CONFIG_RESULTS_PATH
+    export CONFIG_MODE CONFIG_OPEN_VIEWER
 
     return 0
 }
