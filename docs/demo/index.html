@@ -1927,6 +1927,23 @@
             renderMapScreens();
             renderMapConnections();
             setupMapControls();
+
+            // Set responsive initial scale based on viewport
+            const viewportWidth = window.innerWidth;
+            if (viewportWidth <= 480) {
+                mapScale = 1.0;  // Mobile: screens are already small, show at 1:1
+                mapTranslateX = 10;
+                mapTranslateY = 10;
+            } else if (viewportWidth <= 768) {
+                mapScale = 0.6;  // Tablet
+                mapTranslateX = 30;
+                mapTranslateY = 30;
+            } else {
+                mapScale = 0.25;  // Desktop: larger screens need more zoom out
+                mapTranslateX = 50;
+                mapTranslateY = 50;
+            }
+
             updateMapTransform();
             updateMapTimeline();
 

@@ -2,6 +2,13 @@
 
 ## Future Ideas
 
+### Simulator Auto-Detection
+- [ ] Auto-detect latest available simulator matching a pattern (e.g., "iPhone Pro")
+- [ ] Resolve "latest" keyword to newest iOS version for a given device
+- [ ] Fall back gracefully if preferred device unavailable
+- [ ] `darwin init --simulator "iPhone Pro latest"` syntax
+- [ ] Update darwin.json destination dynamically before capture
+
 ### Manifest Auto-Update
 - [ ] `darwin manifest scan` - Detect new/changed source files and suggest updates
 - [ ] Parse Swift files for `accessibilityIdentifier` assignments
