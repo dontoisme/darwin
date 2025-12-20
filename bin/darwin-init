@@ -256,8 +256,24 @@ else
             read -p "Auto-open viewer after capture? [Y/n]: " RESP
             case "$RESP" in [Nn]*) OPEN_VIEWER_AFTER_CAPTURE=false ;; *) OPEN_VIEWER_AFTER_CAPTURE=true ;; esac
             ;;
+        1|"")
+            # Autopilot mode - ask about viewer
+            MODE="autopilot"
+            DETECT_NEW_VIEWS=true
+            ADD_VIEWS_TO_MANIFEST=true
+            CAPTURE_AFTER_COMMIT=true
+            echo ""
+            echo -e "${CYAN}Viewer preference:${NC}"
+            echo "  [1] Auto-open viewer after each capture (Recommended)"
+            echo "  [2] I'll open viewer manually when needed"
+            read -p "Choose [1-2, default=1]: " VIEWER_CHOICE
+            case "$VIEWER_CHOICE" in
+                2) OPEN_VIEWER_AFTER_CAPTURE=false ;;
+                *) OPEN_VIEWER_AFTER_CAPTURE=true ;;
+            esac
+            ;;
         *)
-            # Default: Autopilot
+            # Invalid choice - default to Autopilot with auto-open
             MODE="autopilot"
             DETECT_NEW_VIEWS=true
             ADD_VIEWS_TO_MANIFEST=true
@@ -410,9 +426,14 @@ case "$MODE" in
         echo "   • Detect new SwiftUI views after commits"
         echo "   • Add them to manifest and generate test stubs"
         echo "   • Capture screenshots of affected screens"
-        echo "   • Open the visual timeline"
+        if [ "$OPEN_VIEWER_AFTER_CAPTURE" = true ]; then
+            echo "   • Open the visual timeline"
+        fi
         echo ""
         echo "Just commit as usual - Darwin handles the rest."
+        if [ "$OPEN_VIEWER_AFTER_CAPTURE" = false ]; then
+            echo "Run 'darwin viewer' anytime to see your visual timeline."
+        fi
         echo ""
         echo -e "${YELLOW}To capture your baseline now:${NC}"
         echo "  darwin capture --baseline"
