@@ -196,7 +196,7 @@ add_to_index() {
   "commitFull": "$GIT_COMMIT_FULL",
   "branch": "$GIT_BRANCH",
   "timestamp": "$TIMESTAMP_ISO",
-  "parent": ${parent_id:+\"$parent_id\"}${parent_id:-null},
+  "parent": $([ -n "$parent_id" ] && echo "\"$parent_id\"" || echo "null"),
   "screenCount": $screen_count,
   "mode": "$MODE"
 }
@@ -226,7 +226,7 @@ get_affected_screens() {
                 else
                     affected_tests="$test_name"
                 fi
-                echo -e "  ${GREEN}→${NC} $screen_id (${source})"
+                echo -e "  ${GREEN}→${NC} $screen_id (${source})" >&2
                 break
             fi
         done
@@ -410,7 +410,7 @@ cat > "$METADATA_FILE" << EOF
   "branch": "$GIT_BRANCH",
   "timestamp": "$TIMESTAMP_ISO",
   "mode": "$MODE",
-  "parent": ${PARENT_ID:+\"$PARENT_ID\"}${PARENT_ID:-null},
+  "parent": $([ -n "$PARENT_ID" ] && echo "\"$PARENT_ID\"" || echo "null"),
   "capturedScreens": $CAPTURED_SCREENS,
   "screenCount": $SCREENSHOT_COUNT
 }
