@@ -4,8 +4,8 @@
 class Darwin < Formula
   desc "Git-aware visual regression testing and development timelapse for iOS"
   homepage "https://github.com/dontoisme/darwin"
-  url "https://github.com/dontoisme/darwin/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "c4535627aa814bb8805d5d80085cd188c7d3d8f93a18285bada2808a18e61ea2"
+  url "https://github.com/dontoisme/darwin/archive/refs/tags/v1.3.0.tar.gz"
+  sha256 "79b5c446efba929f6445e6c0161b25f602ef2739dd213eaee2ff3b1e577ad3bd"
   license "MIT"
   head "https://github.com/dontoisme/darwin.git", branch: "main"
 
@@ -23,6 +23,10 @@ class Darwin < Formula
     bin.install "bin/darwin-hook"
     bin.install "bin/darwin-map"
     bin.install "bin/darwin-manifest"
+    bin.install "bin/darwin-detect"
+    bin.install "bin/darwin-ai-rules"
+    bin.install "bin/darwin-export"
+    bin.install "bin/darwin-parse"
 
     # Install lib
     (libexec/"lib").install Dir["lib/*"]
@@ -37,7 +41,11 @@ class Darwin < Formula
     inreplace bin/"darwin-status", 'LIB_DIR="$SCRIPT_DIR/../lib"', "LIB_DIR=\"#{libexec}/lib\""
     inreplace bin/"darwin-hook", 'LIB_DIR="$SCRIPT_DIR/../lib"', "LIB_DIR=\"#{libexec}/lib\""
     inreplace bin/"darwin-manifest", 'LIB_DIR="$SCRIPT_DIR/../lib"', "LIB_DIR=\"#{libexec}/lib\""
+    inreplace bin/"darwin-detect", 'LIB_DIR="$SCRIPT_DIR/../lib"', "LIB_DIR=\"#{libexec}/lib\""
+    inreplace bin/"darwin-export", 'LIB_DIR="$SCRIPT_DIR/../lib"', "LIB_DIR=\"#{libexec}/lib\""
+    inreplace bin/"darwin-parse", 'LIB_DIR="$SCRIPT_DIR/../lib"', "LIB_DIR=\"#{libexec}/lib\""
     inreplace bin/"darwin-init", 'TEMPLATES_DIR="$SCRIPT_DIR/../templates"', "TEMPLATES_DIR=\"#{share}/darwin/templates\""
+    inreplace bin/"darwin-ai-rules", 'TEMPLATES_DIR="$SCRIPT_DIR/../templates/ai-rules"', "TEMPLATES_DIR=\"#{share}/darwin/templates/ai-rules\""
   end
 
   def caveats
