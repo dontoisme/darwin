@@ -238,10 +238,8 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             position: fixed;
             top: 0; left: 0; right: 0;
             height: 60px;
-            background: rgba(22, 27, 34, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
             padding: 0 20px;
@@ -259,10 +257,9 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         .mode-tabs {
             display: flex;
             gap: 2px;
-            background: rgba(255, 255, 255, 0.06);
+            background: var(--bg-tertiary);
             padding: 3px;
             border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.04);
         }
         .mode-tab {
             padding: 8px 18px;
@@ -274,7 +271,6 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             font-size: 13px;
             font-weight: 500;
             transition: all 0.2s ease;
-            letter-spacing: 0.01em;
         }
         .mode-tab:hover {
             color: var(--text);
@@ -283,7 +279,6 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         .mode-tab.active {
             background: var(--accent);
             color: #fff;
-            box-shadow: 0 2px 8px rgba(88, 166, 255, 0.3);
         }
         .header-controls {
             margin-left: auto;
@@ -292,19 +287,14 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             align-items: center;
         }
         .capture-select {
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
             color: var(--text);
             padding: 8px 12px;
             border-radius: 8px;
             font-size: 13px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .capture-select:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.12);
         }
 
         /* Map Toolbar Filters */
@@ -942,23 +932,14 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         /* Mobile menu toggle */
         .mobile-menu-btn {
             display: none;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
             color: var(--text);
             padding: 10px 14px;
             border-radius: 8px;
             font-size: 13px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
-            letter-spacing: 0.01em;
-        }
-        .mobile-menu-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.12);
-        }
-        .mobile-menu-btn:active {
-            transform: scale(0.98);
         }
 
         /* Mobile responsive styles */
@@ -1607,16 +1588,16 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             renderMapConnections();
             setupMapControls();
 
-            // Set responsive initial scale based on viewport
+            // Set responsive initial scale and position based on viewport
             const viewportWidth = window.innerWidth;
             if (viewportWidth <= 480) {
                 mapScale = 1.0;  // Mobile: screens are already small, show at 1:1
-                mapTranslateX = 10;
-                mapTranslateY = 10;
+                mapTranslateX = 20;
+                mapTranslateY = 40;  // Extra offset so first screen isn't cut off
             } else if (viewportWidth <= 768) {
                 mapScale = 0.6;  // Tablet
                 mapTranslateX = 30;
-                mapTranslateY = 30;
+                mapTranslateY = 40;
             } else {
                 mapScale = 0.25;  // Desktop: larger screens need more zoom out
                 mapTranslateX = 50;
