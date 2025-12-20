@@ -37,6 +37,7 @@ print_usage() {
     echo "  status      Show current darwin state"
     echo "  hook        Install/manage git hooks for auto-capture"
     echo "  manifest    Sync manifest with tests (generate stubs)"
+    echo "  detect      Auto-detect new SwiftUI views"
     echo "  version     Show version"
     echo "  help        Show this help message"
     echo ""
@@ -109,6 +110,10 @@ case "${1:-}" in
     manifest)
         shift
         exec "$SCRIPT_DIR/darwin-manifest" "$@"
+        ;;
+    detect)
+        shift
+        exec "$SCRIPT_DIR/darwin-detect" "$@"
         ;;
     version|--version|-v)
         echo "darwin $VERSION"
