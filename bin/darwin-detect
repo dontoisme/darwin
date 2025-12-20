@@ -1,0 +1,540 @@
+#!/bin/bash
+#
+# darwin-detect
+#
+# Auto-detect new SwiftUI views and add them to manifest.
+# Scans source directories for View structs not yet in manifest.
+#
+# Usage:
+#   darwin detect              # List new views (dry run)
+#   darwin detect --check      # Exit 0 if no new views, 1 if found (for hooks)
+#   darwin detect --add        # Add to manifest + generate stubs
+#   darwin detect --add --yes  # Skip confirmation prompt
+#
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LIB_DIR="$SCRIPT_DIR/../lib"
+
+# Source configuration
+if [ -f "$LIB_DIR/config.sh" ]; then
+    source "$LIB_DIR/config.sh"
+fi
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+DIM='\033[2m'
+NC='\033[0m'
+
+# Try to load config
+if load_config 2>/dev/null; then
+    MANIFEST_FILE="$CONFIG_MANIFEST_PATH"
+else
+    PROJECT_DIR="$(pwd)"
+    MANIFEST_FILE="$(pwd)/Screenshots/manifest.json"
+fi
+
+# Mode flags
+CHECK_MODE=false
+ADD_MODE=false
+YES_MODE=false
+SCREENS_ONLY=false
+ALL_VIEWS=false
+
+# Show help
+show_help() {
+    echo -e "${BLUE}🧬 Darwin - Auto-Detect Views${NC}"
+    echo ""
+    echo "Scan for new SwiftUI views and add them to manifest."
+    echo ""
+    echo "Usage: darwin detect [options]"
+    echo ""
+    echo "Options:"
+    echo "  (no options)    List new screen-like views (smart filter)"
+    echo "  --all           Include all views, not just screens"
+    echo "  --check         Exit 0 if no new views, 1 if found (for hooks)"
+    echo "  --add           Add new views to manifest + generate test stubs"
+    echo "  --yes, -y       Skip confirmation prompt (use with --add)"
+    echo "  --help          Show this help"
+    echo ""
+    echo "Examples:"
+    echo "  darwin detect                  # See screen-like views"
+    echo "  darwin detect --all            # See all views including components"
+    echo "  darwin detect --check          # Check for new views (hook mode)"
+    echo "  darwin detect --add            # Add to manifest with confirmation"
+}
+
+# Get source directories to scan (exclude Tests, UITests, Pods, etc.)
+get_source_dirs() {
+    local dirs=()
+
+    # Common iOS source directories
+    for pattern in "$PROJECT_DIR"/*; do
+        if [ -d "$pattern" ]; then
+            local name=$(basename "$pattern")
+            # Skip test, dependency, and secondary app directories
+            case "$name" in
+                *Tests|*UITests|Pods|Carthage|.build|DerivedData|*.xcodeproj|*.xcworkspace|Screenshots|TestResults)
+                    continue
+                    ;;
+                *Watch|*Widgets|*Widget|*Extension|*Kit)
+                    # Skip Watch, Widget, Extension targets - these are separate apps
+                    continue
+                    ;;
+                *)
+                    dirs+=("$pattern")
+                    ;;
+            esac
+        fi
+    done
+
+    printf '%s\n' "${dirs[@]}"
+}
+
+# Patterns for component views to exclude (these are typically not screens)
+EXCLUDE_PATTERNS=(
+    "SectionView$"
+    "RowView$"
+    "ItemView$"
+    "CellView$"
+    "CardView$"
+    "ButtonView$"
+    "IconView$"
+    "ImageView$"
+    "ProgressView$"
+    "AccessoryView$"
+    "BackgroundView$"
+    "ControlView$"
+    "ActionView$"
+    "BoxView$"
+    "TagsView$"
+    "LabelView$"
+    "ArtworkView$"
+    "OptionsView$"
+    "OptionView$"
+    "ListItemView$"
+    "GridItemView$"
+    "InputView$"
+    "OverlayView$"
+    "ToolbarView$"
+    "HeaderView$"
+    "FooterView$"
+    "BannerView$"
+    "ToastView$"
+    "BadgeView$"
+    "TagView$"
+    "ChipView$"
+    "PillView$"
+    "DividerView$"
+    "SpacerView$"
+    "LoadingView$"
+    "EmptyView$"
+    "PlaceholderView$"
+    "SkeletonView$"
+    "ShimmerView$"
+)
+
+# Patterns that strongly suggest a screen (main navigable destination)
+SCREEN_INCLUDE_PATTERNS=(
+    "Screen$"                    # Explicit screen naming
+    "^[A-Z][a-z]+View$"          # Simple names like SettingsView, ProfileView
+    "RootView$"                  # Root views
+    "MainView$"                  # Main views
+    "HomeView$"                  # Home screens
+    "DetailView$"                # Detail screens
+    "DetailsView$"               # Detail screens
+    "ListView$"                  # List screens
+    "GridView$"                  # Grid screens
+    "SheetView$"                 # Modal sheets
+    "ModalView$"                 # Modal screens
+    "PageView$"                  # Page views
+    "TabView$"                   # Tab views
+    "NavigationView$"            # Navigation containers
+    "ContentView$"               # Content views
+    "ConnectionView$"            # Connection screens
+    "LoginView$"                 # Login screens
+    "SignupView$"                # Signup screens
+    "OnboardingView$"            # Onboarding screens
+    "WelcomeView$"               # Welcome screens
+)
+
+# Check if view name matches exclude patterns
+is_excluded_view() {
+    local view_name="$1"
+    for pattern in "${EXCLUDE_PATTERNS[@]}"; do
+        if [[ "$view_name" =~ $pattern ]]; then
+            return 0  # true - should exclude
+        fi
+    done
+    return 1  # false - don't exclude
+}
+
+# Check if view name looks like a screen (main navigable destination)
+is_screen_like() {
+    local view_name="$1"
+
+    # First check exclude patterns - if excluded, not a screen
+    if is_excluded_view "$view_name"; then
+        return 1
+    fi
+
+    # Check if it matches screen include patterns
+    for pattern in "${SCREEN_INCLUDE_PATTERNS[@]}"; do
+        if [[ "$view_name" =~ $pattern ]]; then
+            return 0  # true - is screen-like
+        fi
+    done
+
+    # Heuristic: Simple two-word views are often screens
+    # E.g., SettingsView, ProfileView, ChaptersView
+    # But not SettingsIntegrationsSectionView
+    local word_count=$(echo "$view_name" | sed 's/\([A-Z]\)/ \1/g' | wc -w)
+    if [ "$word_count" -le 2 ]; then
+        return 0  # Simple name, likely a screen
+    fi
+
+    return 1  # false - not screen-like
+}
+
+# Scan for SwiftUI View structs
+# Returns: filepath|view_name for each view found
+scan_views() {
+    local source_dirs
+    source_dirs=$(get_source_dirs)
+
+    while IFS= read -r dir; do
+        if [ -d "$dir" ]; then
+            # Find Swift files and grep for View structs
+            find "$dir" -name "*.swift" -type f 2>/dev/null | while read -r file; do
+                # Skip test files
+                if [[ "$file" == *Tests* ]] || [[ "$file" == *UITests* ]]; then
+                    continue
+                fi
+
+                # Extract view structs from file
+                grep -E "^struct\s+[A-Za-z0-9_]+View\s*:" "$file" 2>/dev/null | while read -r line; do
+                    # Extract just the view name using awk
+                    local view_name=$(echo "$line" | awk '{print $2}' | sed 's/:$//')
+                    if [ -n "$view_name" ] && [[ "$view_name" == *View ]]; then
+                        # Filter based on mode
+                        if [ "$ALL_VIEWS" = true ]; then
+                            # In --all mode, just exclude obvious components
+                            if is_excluded_view "$view_name"; then
+                                continue
+                            fi
+                        else
+                            # Default mode: only include screen-like views
+                            if ! is_screen_like "$view_name"; then
+                                continue
+                            fi
+                        fi
+                        # Get relative path from project dir
+                        local rel_path="${file#$PROJECT_DIR/}"
+                        echo "$rel_path|$view_name"
+                    fi
+                done
+            done
+        fi
+    done <<< "$source_dirs"
+}
+
+# Get all source files from manifest
+get_manifest_sources() {
+    if [ ! -f "$MANIFEST_FILE" ]; then
+        return
+    fi
+
+    jq -r '.screens[].sources[]?' "$MANIFEST_FILE" 2>/dev/null | sort -u
+}
+
+# Find views not in manifest
+find_new_views() {
+    local manifest_sources
+    manifest_sources=$(get_manifest_sources)
+
+    scan_views | while IFS='|' read -r filepath view_name; do
+        # Check if this file is already tracked in manifest
+        if ! echo "$manifest_sources" | grep -q "^$filepath$"; then
+            echo "$filepath|$view_name"
+        fi
+    done
+}
+
+# Infer group from file path
+# Uses groupMappings from darwin.json if available, otherwise uses folder heuristics
+infer_group() {
+    local filepath="$1"
+
+    # Try to get groupMappings from config
+    if [ -f "$PROJECT_DIR/darwin.json" ]; then
+        local mappings=$(jq -r '.groupMappings // empty' "$PROJECT_DIR/darwin.json" 2>/dev/null)
+        if [ -n "$mappings" ] && [ "$mappings" != "null" ]; then
+            # Check each group mapping
+            local groups=$(jq -r '.groupMappings | keys[]' "$PROJECT_DIR/darwin.json" 2>/dev/null)
+            while read -r group; do
+                local patterns=$(jq -r ".groupMappings[\"$group\"][]" "$PROJECT_DIR/darwin.json" 2>/dev/null)
+                while read -r pattern; do
+                    if [[ "$filepath" == *"$pattern"* ]]; then
+                        echo "$group" | tr '[:upper:]' '[:lower:]'
+                        return
+                    fi
+                done <<< "$patterns"
+            done <<< "$groups"
+        fi
+    fi
+
+    # Fallback: infer from path segments
+    # E.g., BookPlayer/Player/Views/FooView.swift → player
+    local path_lower=$(echo "$filepath" | tr '[:upper:]' '[:lower:]')
+
+    if [[ "$path_lower" == *"/player/"* ]]; then
+        echo "player"
+    elif [[ "$path_lower" == *"/library/"* ]] || [[ "$path_lower" == *"/itemlist/"* ]]; then
+        echo "library"
+    elif [[ "$path_lower" == *"/settings/"* ]]; then
+        echo "settings"
+    elif [[ "$path_lower" == *"/squabble/"* ]]; then
+        echo "profile"
+    else
+        echo ""
+    fi
+}
+
+# Get next screen ID number
+get_next_id() {
+    if [ ! -f "$MANIFEST_FILE" ]; then
+        echo "01"
+        return
+    fi
+
+    local max_id=$(jq -r '.screens | keys[]' "$MANIFEST_FILE" 2>/dev/null | \
+        sed -E 's/^([0-9]+)-.*/\1/' | sort -n | tail -1)
+
+    if [ -z "$max_id" ]; then
+        echo "01"
+    else
+        printf "%02d" $((10#$max_id + 1))
+    fi
+}
+
+# Convert view name to screen name
+# FooBarView → Foo Bar
+view_to_screen_name() {
+    local view_name="$1"
+
+    # Remove View suffix
+    local name="${view_name%View}"
+
+    # Add spaces before capital letters
+    echo "$name" | sed 's/\([A-Z]\)/ \1/g' | sed 's/^ //'
+}
+
+# Convert view name to screen ID
+# FooBarView → foo-bar
+view_to_screen_id() {
+    local view_name="$1"
+    local next_num="$2"
+
+    # Remove View suffix and convert to lowercase with dashes
+    local name="${view_name%View}"
+    local id=$(echo "$name" | sed 's/\([A-Z]\)/-\1/g' | tr '[:upper:]' '[:lower:]' | sed 's/^-//')
+
+    echo "${next_num}-${id}"
+}
+
+# Generate manifest entry JSON
+generate_manifest_entry() {
+    local screen_id="$1"
+    local screen_name="$2"
+    local test_name="$3"
+    local source_path="$4"
+
+    cat << EOF
+    "$screen_id": {
+      "name": "$screen_name",
+      "test": "$test_name",
+      "sources": ["$source_path"],
+      "flows_to": []
+    }
+EOF
+}
+
+# Add entries to manifest
+add_to_manifest() {
+    local entries="$1"
+
+    if [ ! -f "$MANIFEST_FILE" ]; then
+        echo -e "${RED}Error: manifest.json not found${NC}"
+        exit 1
+    fi
+
+    # Create a backup
+    cp "$MANIFEST_FILE" "$MANIFEST_FILE.bak"
+
+    # Add each entry to manifest
+    local temp_file=$(mktemp)
+    local count=0
+
+    while IFS='|' read -r screen_id screen_name test_name source_path group; do
+        # Add to screens object
+        jq --arg id "$screen_id" \
+           --arg name "$screen_name" \
+           --arg test "$test_name" \
+           --arg src "$source_path" \
+           '.screens[$id] = {"name": $name, "test": $test, "sources": [$src], "flows_to": []}' \
+           "$MANIFEST_FILE" > "$temp_file"
+        mv "$temp_file" "$MANIFEST_FILE"
+
+        # Add to group if specified
+        if [ -n "$group" ]; then
+            # Check if group exists
+            local group_exists=$(jq -r ".groups[\"$group\"] // empty" "$MANIFEST_FILE")
+            if [ -n "$group_exists" ]; then
+                jq --arg group "$group" --arg id "$screen_id" \
+                   '.groups[$group].screens += [$id]' \
+                   "$MANIFEST_FILE" > "$temp_file"
+                mv "$temp_file" "$MANIFEST_FILE"
+            fi
+        fi
+
+        ((count++))
+    done <<< "$entries"
+
+    echo "$count"
+}
+
+# Main function
+main() {
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --check)
+                CHECK_MODE=true
+                shift
+                ;;
+            --add)
+                ADD_MODE=true
+                shift
+                ;;
+            --yes|-y)
+                YES_MODE=true
+                shift
+                ;;
+            --all)
+                ALL_VIEWS=true
+                shift
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}Unknown option: $1${NC}"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+
+    # Check manifest exists
+    if [ ! -f "$MANIFEST_FILE" ]; then
+        echo -e "${RED}Error: manifest.json not found at $MANIFEST_FILE${NC}"
+        echo "Run 'darwin init' first"
+        exit 1
+    fi
+
+    # Find new views
+    local new_views
+    new_views=$(find_new_views)
+
+    local count=$(echo "$new_views" | grep -c '|' 2>/dev/null || echo 0)
+
+    # Check mode - just exit with status
+    if [ "$CHECK_MODE" = true ]; then
+        if [ "$count" -eq 0 ]; then
+            exit 0
+        else
+            exit 1
+        fi
+    fi
+
+    # No new views
+    if [ "$count" -eq 0 ]; then
+        echo -e "${GREEN}✓ No new SwiftUI views detected${NC}"
+        exit 0
+    fi
+
+    echo -e "${BLUE}🔍 Darwin - Detected New Views${NC}"
+    echo ""
+    echo -e "Found ${YELLOW}$count${NC} new SwiftUI view(s):"
+    echo ""
+
+    # Prepare entries
+    local entries=""
+    local next_id=$(get_next_id)
+
+    while IFS='|' read -r filepath view_name; do
+        if [ -z "$filepath" ] || [ -z "$view_name" ]; then
+            continue
+        fi
+
+        local screen_name=$(view_to_screen_name "$view_name")
+        local screen_id=$(view_to_screen_id "$view_name" "$next_id")
+        local test_name="test${next_id}_${view_name%View}"
+        local group=$(infer_group "$filepath")
+
+        echo -e "  ${CYAN}•${NC} $view_name"
+        echo -e "    ${DIM}File:   $filepath${NC}"
+        echo -e "    ${DIM}Screen: $screen_name ($screen_id)${NC}"
+        echo -e "    ${DIM}Test:   $test_name${NC}"
+        if [ -n "$group" ]; then
+            echo -e "    ${DIM}Group:  $group${NC}"
+        fi
+        echo ""
+
+        entries+="$screen_id|$screen_name|$test_name|$filepath|$group"$'\n'
+
+        # Increment ID for next entry
+        next_id=$(printf "%02d" $((10#$next_id + 1)))
+    done <<< "$new_views"
+
+    # Add mode
+    if [ "$ADD_MODE" = true ]; then
+        if [ "$YES_MODE" != true ]; then
+            read -p "Add to manifest and generate test stubs? [Y/n] " response
+            case "$response" in
+                [Nn]*)
+                    echo "Skipped."
+                    exit 0
+                    ;;
+            esac
+        fi
+
+        echo ""
+        echo -e "${CYAN}Adding to manifest...${NC}"
+        local added=$(add_to_manifest "$entries")
+        echo -e "${GREEN}✓ Added $added screen(s) to manifest${NC}"
+
+        echo ""
+        echo -e "${CYAN}Generating test stubs...${NC}"
+        "$SCRIPT_DIR/darwin-manifest" sync --generate
+
+        echo ""
+        echo -e "${GREEN}🧬 Done!${NC}"
+        echo ""
+        echo -e "Next steps:"
+        echo "  1. Copy the generated test stubs to your ScreenshotTests.swift"
+        echo "  2. Implement navigation logic for each test"
+        echo "  3. Run: darwin capture"
+    else
+        echo -e "${CYAN}To add these to manifest:${NC}"
+        echo "  darwin detect --add"
+    fi
+}
+
+main "$@"
