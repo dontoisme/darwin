@@ -60,7 +60,19 @@ if [ -f "darwin.json" ]; then
             # Show what would be captured
             echo ""
             echo "Run '\''darwin capture'\'' to capture these changes."
-            echo "Or '\''darwin capture --auto'\'' was added to run automatically."
+
+            # Check for new views not yet in manifest
+            if ! darwin detect --check 2>/dev/null; then
+                echo ""
+                echo "🔍 New SwiftUI views detected:"
+                darwin detect 2>/dev/null
+                echo ""
+                read -p "Add to manifest and generate test stubs? [Y/n] " response
+                case "$response" in
+                    [Nn]* ) echo "Skipped." ;;
+                    * ) darwin detect --add --yes 2>/dev/null ;;
+                esac
+            fi
         fi
     fi
 fi
@@ -80,6 +92,14 @@ if [ -f "darwin.json" ]; then
         echo ""
 
         if command -v darwin &> /dev/null; then
+            # Check for new views first and auto-add them
+            if ! darwin detect --check 2>/dev/null; then
+                echo "🔍 New SwiftUI views detected, adding to manifest..."
+                darwin detect --add --yes 2>/dev/null
+                echo ""
+            fi
+
+            # Run capture
             darwin capture 2>&1 | tail -20
         fi
     fi
@@ -97,13 +117,18 @@ print_usage() {
     echo "  status      Check if hook is installed"
     echo ""
     echo "Options:"
-    echo "  --auto      Auto-capture on commit (default: prompt only)"
+    echo "  --auto      Auto-capture and auto-add new views (default: prompt)"
     echo "  --help      Show this help"
     echo ""
     echo "Examples:"
-    echo "  darwin hook install           # Install hook (prompts to capture)"
-    echo "  darwin hook install --auto    # Install hook (auto-captures)"
+    echo "  darwin hook install           # Install hook (prompts for capture + new views)"
+    echo "  darwin hook install --auto    # Install hook (auto-captures + auto-adds views)"
     echo "  darwin hook uninstall         # Remove hook"
+    echo ""
+    echo "After commit with Swift changes, the hook will:"
+    echo "  1. Detect new SwiftUI views not in manifest"
+    echo "  2. Prompt to add them (or auto-add in --auto mode)"
+    echo "  3. Run smart capture for affected screens"
 }
 
 check_git_repo() {
@@ -176,9 +201,11 @@ install_hook() {
     echo -e "${CYAN}What happens now:${NC}"
     echo "  After each commit with Swift changes, darwin will:"
     if [ "$auto_mode" = true ]; then
+        echo "    - Auto-detect and add new SwiftUI views to manifest"
         echo "    - Automatically run smart capture"
         echo "    - Add new screenshots to your timeline"
     else
+        echo "    - Detect new SwiftUI views and prompt to add them"
         echo "    - Show which screens would be affected"
         echo "    - Prompt you to run 'darwin capture'"
     fi
