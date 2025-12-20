@@ -1893,7 +1893,6 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
             renderMapScreens();
 
             // Preload element coordinates for current capture, then render connections
-            const captures = INDEX.captures || [];
             const currentCapture = captures[mapTimelineIdx] || captures[captures.length - 1];
             if (currentCapture) {
                 preloadElementCoordinates(currentCapture.id).then(() => {
