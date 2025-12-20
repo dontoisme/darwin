@@ -1,8 +1,8 @@
 # Darwin
 
-**Watch your iOS app evolve.** Git-aware visual regression testing and development timelapse for iOS.
+**Your AI's eyes on the build.** Visual regression testing for the vibe coding era.
 
-Darwin tracks UI changes across commits by intelligently capturing only screens affected by your code changes, generating pixel-level diff reports, and building a visual timeline of your app's evolution.
+See exactly what changed—whether you wrote it or your AI did. Darwin tracks UI changes across commits by intelligently capturing only screens affected by your code changes, generating pixel-level diff reports, and building a visual timeline of your app's evolution.
 
 ## Features
 
@@ -11,6 +11,7 @@ Darwin tracks UI changes across commits by intelligently capturing only screens 
 - **Pixel-level diff** — ImageMagick-powered comparison with HTML reports
 - **Git-aware** — Organized by commit, tracks source file → screen mapping
 - **Git hooks** — Auto-capture or prompt after commits with Swift changes
+- **Slack notifications** — Get notified when captures complete (optional)
 - **CI-ready** — Works with any CI system, generates HTML reports
 
 ## Quick Start
@@ -68,6 +69,31 @@ darwin hook install --auto   # Auto-capture after commits
 darwin hook status           # Check if hook is installed
 ```
 
+### Slack Notifications
+
+Get notified when captures complete. Add a `slack_webhook` to your `darwin.json`:
+
+```json
+{
+  "slack_webhook": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+}
+```
+
+You'll receive messages like:
+
+```
+✅ Darwin Capture Complete
+Commit: `abc1234` (main)
+Mode: smart
+Screens: 5 captured
+📂 Viewer: `file:///path/to/Screenshots/viewer.html`
+```
+
+To set up a Slack webhook:
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → Create New App
+2. Add "Incoming Webhooks" feature → Activate → Add to a channel
+3. Copy the webhook URL to your `darwin.json`
+
 ## How It Works
 
 1. **Manifest** (`Screenshots/manifest.json`) maps source files to screens
@@ -89,9 +115,12 @@ Darwin uses `darwin.json` in your project root:
   "testClass": "ScreenshotTests",
   "destination": "platform=iOS Simulator,name=iPhone 16 Pro",
   "outputDir": "Screenshots",
-  "manifest": "Screenshots/manifest.json"
+  "manifest": "Screenshots/manifest.json",
+  "slack_webhook": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
 }
 ```
+
+The `slack_webhook` field is optional. If provided, Darwin will send a notification to Slack when captures complete.
 
 ## Manifest Format
 
@@ -156,11 +185,11 @@ Copy `templates/XCUIApplication+Screenshots.swift` to your UI test target for th
 
 ## Use Cases
 
-- **Visual regression testing** — Catch unintended UI changes before they ship
-- **Design review** — Generate visual diffs for PR reviews
-- **AI-assisted development** — Track changes made by AI coding assistants
-- **Documentation** — Build a visual timeline of your app's evolution
-- **Onboarding** — Show new team members how the UI evolved
+- **AI-assisted development** — Your AI added a settings screen. Did it accidentally break the home view? Darwin shows you.
+- **Solo builder sanity check** — No QA team? No problem. Automated visual history keeps you honest with yourself.
+- **Visual regression testing** — Catch unintended UI changes before they ship.
+- **Design review** — Generate visual diffs for PR reviews or async feedback.
+- **Development timelapse** — Build a visual history of your app's evolution. Great for demos and retrospectives.
 
 ## License
 
