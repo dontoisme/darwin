@@ -7,10 +7,11 @@ See exactly what changed—whether you wrote it or your AI did. Darwin tracks UI
 ## Features
 
 - **Smart capture** — Only screenshot screens affected by changed source files
+- **Auto-detect views** — Automatically find new SwiftUI screens and add to manifest
 - **Visual timeline** — Interactive viewer with timeline playback, app flow map, and group filtering
 - **Pixel-level diff** — ImageMagick-powered comparison with HTML reports
 - **Git-aware** — Organized by commit, tracks source file → screen mapping
-- **Git hooks** — Auto-capture or prompt after commits with Swift changes
+- **Git hooks** — Auto-capture and detect new views after commits
 - **Slack notifications** — Get notified when captures complete (optional)
 - **CI-ready** — Works with any CI system, generates HTML reports
 
@@ -48,9 +49,23 @@ darwin viewer
 | `darwin capture --baseline` | Capture all screens (first run) |
 | `darwin diff` | Compare screenshots between captures |
 | `darwin viewer` | Open interactive timeline viewer (auto-regenerates after capture) |
-| `darwin manifest sync` | Sync manifest with viewer (auto-runs after capture) |
+| `darwin detect` | Auto-detect new SwiftUI views not in manifest |
+| `darwin manifest sync` | Sync manifest with tests (generate stubs) |
 | `darwin status` | Show current state and pending changes |
-| `darwin hook install` | Install git hook for auto-capture |
+| `darwin hook install` | Install git hook for auto-capture + detect |
+
+### darwin detect
+
+Auto-detect new SwiftUI views in your codebase that aren't yet in the manifest:
+
+```bash
+darwin detect              # List screen-like views not in manifest
+darwin detect --all        # Include component views too
+darwin detect --add        # Add to manifest + generate test stubs
+darwin detect --add --yes  # Skip confirmation prompt
+```
+
+Darwin intelligently filters for **screen-like views** (navigable destinations like `SettingsView`, `ProfileView`) while excluding component views (`ButtonView`, `CardView`, `RowView`).
 
 ### darwin viewer
 
@@ -65,9 +80,14 @@ Integrate Darwin into your git workflow:
 
 ```bash
 darwin hook install          # Prompt after commits with Swift changes
-darwin hook install --auto   # Auto-capture after commits
+darwin hook install --auto   # Auto-capture + auto-add new views
 darwin hook status           # Check if hook is installed
 ```
+
+After each commit with Swift changes, the hook will:
+1. **Detect new views** — Find SwiftUI views not yet in manifest
+2. **Prompt to add** — Ask to add them and generate test stubs (or auto-add in `--auto` mode)
+3. **Smart capture** — Show affected screens (or auto-capture in `--auto` mode)
 
 ### Slack Notifications
 
