@@ -9,7 +9,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VERSION="1.0.0"
+VERSION="1.1.0"
 
 # Colors for output
 RED='\033[0;31m'
