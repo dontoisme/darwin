@@ -361,10 +361,78 @@ if [ ! -f "Screenshots/manifest.json" ]; then
 EOF
 
     echo -e "${GREEN}Created:${NC} Screenshots/manifest.json"
-    echo -e "${YELLOW}Note:${NC} Edit manifest.json to add your app's screens and source mappings."
 fi
 
-# Copy templates if requested
+# Auto-detect screens and populate manifest
+SCREENS_ADDED=0
+if [ "$SKIP_PROMPTS" != true ]; then
+    echo ""
+    echo -e "${CYAN}Scanning codebase for screens...${NC}"
+
+    # Run detect in list mode to get view names
+    DETECTED=$("$SCRIPT_DIR/darwin-detect" --list 2>/dev/null || echo "")
+    if [ -n "$DETECTED" ]; then
+        SCREEN_COUNT=$(echo "$DETECTED" | wc -l | tr -d ' ')
+
+        if [ "$SCREEN_COUNT" -gt 0 ]; then
+            echo -e "  ${GREEN}✓${NC} Found $SCREEN_COUNT screen-like views"
+            echo ""
+
+            # Show first 5 views
+            echo "$DETECTED" | head -5 | while read -r view; do
+                echo "    $view"
+            done
+            [ "$SCREEN_COUNT" -gt 5 ] && echo "    ... and $((SCREEN_COUNT - 5)) more"
+            echo ""
+
+            read -p "Add these to manifest? [Y/n]: " ADD_SCREENS_RESP
+            if [[ ! $ADD_SCREENS_RESP =~ ^[Nn]$ ]]; then
+                "$SCRIPT_DIR/darwin-detect" --add --yes 2>/dev/null
+                SCREENS_ADDED=$SCREEN_COUNT
+                echo -e "  ${GREEN}✓${NC} Updated manifest with $SCREEN_COUNT screens"
+            fi
+        fi
+    else
+        echo -e "  ${DIM}No SwiftUI views detected (will use template manifest)${NC}"
+    fi
+fi
+
+# Generate test stubs
+TESTS_GENERATED=false
+if [ "$SKIP_PROMPTS" != true ] && [ "$SCREENS_ADDED" -gt 0 ]; then
+    echo ""
+    read -p "Generate test stubs? [Y/n]: " GEN_TESTS_RESP
+    if [[ ! $GEN_TESTS_RESP =~ ^[Nn]$ ]]; then
+        # Create test file
+        TEST_FILE_PATH="$TEST_TARGET/ScreenshotTests.swift"
+        "$SCRIPT_DIR/darwin-manifest" sync --generate-file "$TEST_FILE_PATH" 2>/dev/null
+        echo -e "  ${GREEN}✓${NC} Created $TEST_FILE_PATH"
+
+        # Copy helper templates
+        HELPERS_DIR="$TEST_TARGET/Helpers"
+        mkdir -p "$HELPERS_DIR"
+        if [ -d "$TEMPLATES_DIR" ]; then
+            cp "$TEMPLATES_DIR/XCUIApplication+Screenshots.swift" "$HELPERS_DIR/" 2>/dev/null && \
+                echo -e "  ${GREEN}✓${NC} Copied XCUIApplication+Screenshots.swift"
+            cp "$TEMPLATES_DIR/BaseScreenshotTests.swift" "$HELPERS_DIR/" 2>/dev/null && \
+                echo -e "  ${GREEN}✓${NC} Copied BaseScreenshotTests.swift"
+        fi
+        TESTS_GENERATED=true
+    fi
+fi
+
+# Demo viewer prompt
+if [ "$SKIP_PROMPTS" != true ]; then
+    echo ""
+    read -p "See what Darwin looks like? [Y/n]: " SHOW_DEMO_RESP
+    if [[ ! $SHOW_DEMO_RESP =~ ^[Nn]$ ]]; then
+        echo -e "  → Opening demo viewer..."
+        open "https://dontoisme.github.io/darwin/demo/" 2>/dev/null || \
+            echo "  Visit: https://dontoisme.github.io/darwin/demo/"
+    fi
+fi
+
+# Copy templates if requested (legacy flag - now handled above)
 if [ "$COPY_TEMPLATES" = true ] && [ -d "$TEMPLATES_DIR" ]; then
     echo ""
     echo -e "${BLUE}Copying Swift templates...${NC}"
@@ -429,78 +497,100 @@ install_hook() {
 
 install_hook
 
-# Summary
-echo ""
-echo -e "${GREEN}=== Darwin Initialized ===${NC}"
-echo ""
-echo "Configuration:"
-echo "  Project:     $PROJECT"
-echo "  Scheme:      $SCHEME"
-echo "  Test Target: $TEST_TARGET"
-echo "  Destination: $DESTINATION"
-echo "  Mode:        $MODE"
-echo ""
-echo "Created files:"
-echo "  darwin.json              - Configuration file"
-echo "  Screenshots/             - Screenshot output directory"
-echo "  Screenshots/manifest.json - Screen-to-source mapping"
+# Summary - show focused next steps based on what was set up
 echo ""
 
-# Mode-specific next steps
-case "$MODE" in
-    autopilot)
-        echo -e "${GREEN}🚀 You're all set!${NC} Darwin will automatically:"
-        echo "   • Detect new SwiftUI views after commits"
-        echo "   • Add them to manifest and generate test stubs"
-        echo "   • Capture screenshots of affected screens"
-        if [ "$OPEN_VIEWER_AFTER_CAPTURE" = true ]; then
-            echo "   • Open the visual timeline"
-        fi
-        echo ""
-        echo "Just commit as usual - Darwin handles the rest."
-        if [ "$OPEN_VIEWER_AFTER_CAPTURE" = false ]; then
-            echo "Run 'darwin viewer' anytime to see your visual timeline."
-        fi
-        echo ""
-        echo -e "${YELLOW}To capture your baseline now:${NC}"
-        echo "  darwin capture --baseline"
-        ;;
-    guided)
-        echo -e "${CYAN}🎯 Guided mode enabled.${NC} After each commit, Darwin will:"
-        echo "   • Detect new SwiftUI views and prompt to add them"
-        echo "   • Show affected screens and prompt to capture"
-        echo "   • Auto-open the visual timeline after capture"
-        echo ""
-        echo -e "${YELLOW}Next steps:${NC}"
-        echo "  1. Edit Screenshots/manifest.json to add your screens"
-        echo "  2. Run: darwin capture --baseline"
-        ;;
-    manual)
-        echo -e "${BLUE}🛠️  Manual mode enabled.${NC} Run commands when you need them:"
-        echo ""
-        echo "  darwin detect      # Find new SwiftUI views"
-        echo "  darwin capture     # Take screenshots"
-        echo "  darwin viewer      # See visual timeline"
-        echo "  darwin diff        # Compare captures"
-        echo ""
-        echo -e "${YELLOW}Next steps:${NC}"
-        echo "  1. Edit Screenshots/manifest.json to add your screens"
-        echo "  2. Add accessibility identifiers to your views"
-        echo "  3. Create $TEST_TARGET/ScreenshotTests.swift"
-        echo "  4. Run: darwin capture --baseline"
-        ;;
-    custom)
-        echo -e "${CYAN}⚙️  Custom mode configured:${NC}"
-        echo "   • Detect new views:     $DETECT_NEW_VIEWS"
-        echo "   • Auto-add to manifest: $ADD_VIEWS_TO_MANIFEST"
-        echo "   • Capture after commit: $CAPTURE_AFTER_COMMIT"
-        echo "   • Open viewer:          $OPEN_VIEWER_AFTER_CAPTURE"
-        echo ""
-        echo -e "${YELLOW}Next steps:${NC}"
-        echo "  1. Edit Screenshots/manifest.json to add your screens"
-        echo "  2. Run: darwin capture --baseline"
-        ;;
-esac
+if [ "$TESTS_GENERATED" = true ]; then
+    # Tests were generated - show focused next steps
+    echo -e "${GREEN}═══════════════════════════════════════${NC}"
+    echo -e "${GREEN}  Next: Add navigation to your tests${NC}"
+    echo -e "${GREEN}═══════════════════════════════════════${NC}"
+    echo ""
+    echo "Your test file is ready at:"
+    echo -e "  ${CYAN}$TEST_TARGET/ScreenshotTests.swift${NC}"
+    echo ""
+    echo "Each test needs navigation logic:"
+    echo ""
+    echo -e "  ${YELLOW}func testScreenshot_02_settings() {${NC}"
+    echo -e "      ${GREEN}app.buttons[\"settings\"].tap()  // ← Add this${NC}"
+    echo -e "      ${YELLOW}takeScreenshotWithElements(\"02-settings\", app: app)${NC}"
+    echo -e "  ${YELLOW}}${NC}"
+    echo ""
+    echo "Then run:"
+    echo -e "  ${CYAN}darwin capture --baseline${NC}"
+else
+    # Standard summary
+    echo -e "${GREEN}=== Darwin Initialized ===${NC}"
+    echo ""
+    echo "Configuration:"
+    echo "  Project:     $PROJECT"
+    echo "  Scheme:      $SCHEME"
+    echo "  Test Target: $TEST_TARGET"
+    echo "  Destination: $DESTINATION"
+    echo "  Mode:        $MODE"
+    echo ""
+    echo "Created files:"
+    echo "  darwin.json              - Configuration file"
+    echo "  Screenshots/             - Screenshot output directory"
+    echo "  Screenshots/manifest.json - Screen-to-source mapping"
+    echo ""
+
+    # Mode-specific next steps
+    case "$MODE" in
+        autopilot)
+            echo -e "${GREEN}🚀 You're all set!${NC} Darwin will automatically:"
+            echo "   • Detect new SwiftUI views after commits"
+            echo "   • Add them to manifest and generate test stubs"
+            echo "   • Capture screenshots of affected screens"
+            if [ "$OPEN_VIEWER_AFTER_CAPTURE" = true ]; then
+                echo "   • Open the visual timeline"
+            fi
+            echo ""
+            echo "Just commit as usual - Darwin handles the rest."
+            if [ "$OPEN_VIEWER_AFTER_CAPTURE" = false ]; then
+                echo "Run 'darwin viewer' anytime to see your visual timeline."
+            fi
+            echo ""
+            echo -e "${YELLOW}To capture your baseline now:${NC}"
+            echo "  darwin capture --baseline"
+            ;;
+        guided)
+            echo -e "${CYAN}🎯 Guided mode enabled.${NC} After each commit, Darwin will:"
+            echo "   • Detect new SwiftUI views and prompt to add them"
+            echo "   • Show affected screens and prompt to capture"
+            echo "   • Auto-open the visual timeline after capture"
+            echo ""
+            echo -e "${YELLOW}Next steps:${NC}"
+            echo "  1. Edit Screenshots/manifest.json to add your screens"
+            echo "  2. Run: darwin capture --baseline"
+            ;;
+        manual)
+            echo -e "${BLUE}🛠️  Manual mode enabled.${NC} Run commands when you need them:"
+            echo ""
+            echo "  darwin detect      # Find new SwiftUI views"
+            echo "  darwin capture     # Take screenshots"
+            echo "  darwin viewer      # See visual timeline"
+            echo "  darwin diff        # Compare captures"
+            echo ""
+            echo -e "${YELLOW}Next steps:${NC}"
+            echo "  1. Edit Screenshots/manifest.json to add your screens"
+            echo "  2. Add accessibility identifiers to your views"
+            echo "  3. Create $TEST_TARGET/ScreenshotTests.swift"
+            echo "  4. Run: darwin capture --baseline"
+            ;;
+        custom)
+            echo -e "${CYAN}⚙️  Custom mode configured:${NC}"
+            echo "   • Detect new views:     $DETECT_NEW_VIEWS"
+            echo "   • Auto-add to manifest: $ADD_VIEWS_TO_MANIFEST"
+            echo "   • Capture after commit: $CAPTURE_AFTER_COMMIT"
+            echo "   • Open viewer:          $OPEN_VIEWER_AFTER_CAPTURE"
+            echo ""
+            echo -e "${YELLOW}Next steps:${NC}"
+            echo "  1. Edit Screenshots/manifest.json to add your screens"
+            echo "  2. Run: darwin capture --baseline"
+            ;;
+    esac
+fi
 
 echo ""
 echo "See: https://github.com/dontoisme/darwin"

@@ -2,6 +2,20 @@
 
 All notable changes to Darwin will be documented in this file.
 
+## [1.4.0] - 2025-12-20
+
+### Added
+- **"Wow" First-Time Experience** — `darwin init` now auto-detects screens, generates test stubs, and shows the demo viewer
+- **Screen auto-detection during init** — Scans codebase for SwiftUI views and offers to add them to manifest
+- **Test stub generation** — Creates ScreenshotTests.swift with test methods for all detected screens
+- **Demo viewer prompt** — Opens the Darwin demo to show what the tool looks like
+- **Focused "Next Steps"** — When tests are generated, shows exactly what navigation code to add
+
+### Improved
+- `darwin detect --list` — Output just view names for scripting
+- `darwin detect --quiet` — Suppress banner for integration
+- `darwin manifest sync --generate-file FILE` — Create complete ScreenshotTests.swift
+
 ## [1.3.0] - 2025-12-20
 
 ### Added
@@ -58,6 +72,7 @@ All notable changes to Darwin will be documented in this file.
 - **Git-aware** — Organized by commit, tracks source file → screen mapping
 - Homebrew installation support
 
+[1.4.0]: https://github.com/dontoisme/darwin/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/dontoisme/darwin/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/dontoisme/darwin/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/dontoisme/darwin/compare/v1.0.0...v1.1.0
