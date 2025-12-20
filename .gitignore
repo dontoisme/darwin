@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Firebase
+firebase-debug.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Test artifacts
+TestResults/
