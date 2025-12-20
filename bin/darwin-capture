@@ -21,6 +21,9 @@ LIB_DIR="$SCRIPT_DIR/../lib"
 # Source configuration
 source "$LIB_DIR/config.sh"
 
+# Source webhook notifications
+source "$LIB_DIR/webhooks.sh"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -474,3 +477,6 @@ fi
 
 echo ""
 echo -e "${GREEN}🧬 Done${NC}"
+
+# Send Slack notification (if configured)
+send_slack_notification "success" "Captured $SCREENSHOT_COUNT screens"
