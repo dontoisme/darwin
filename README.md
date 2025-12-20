@@ -191,6 +191,10 @@ Copy `templates/XCUIApplication+Screenshots.swift` to your UI test target for th
 - **Design review** — Generate visual diffs for PR reviews or async feedback.
 - **Development timelapse** — Build a visual history of your app's evolution. Great for demos and retrospectives.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE)
