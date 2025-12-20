@@ -32,6 +32,7 @@ NC='\033[0m'
 # Thresholds
 DIFF_THRESHOLD=0.01  # Percent difference to consider "changed"
 SIGNIFICANT_THRESHOLD=5  # Percent difference to highlight as significant
+FUZZ_TOLERANCE=5  # Percent color difference to ignore (helps with time/battery changes)
 
 # Try to load config, but fall back to current directory
 if load_config 2>/dev/null; then
@@ -65,12 +66,18 @@ while [[ $# -gt 0 ]]; do
             DIFF_THRESHOLD="$2"
             shift 2
             ;;
+        --fuzz)
+            FUZZ_TOLERANCE="$2"
+            shift 2
+            ;;
         --help|-h)
             echo "Usage: darwin diff [OPTIONS] [capture1] [capture2]"
             echo ""
             echo "Options:"
             echo "  --html          Generate HTML report with visual diffs"
             echo "  --threshold N   Percent difference threshold (default: 0.01)"
+            echo "  --fuzz N        Color fuzz tolerance percent (default: 5)"
+            echo "                  Helps ignore time/battery changes"
             echo "  --help          Show this help"
             echo ""
             echo "Arguments:"
@@ -215,8 +222,8 @@ compare_screenshots() {
 
         # Compare files
         if $USE_IMAGEMAGICK; then
-            # Get pixel difference percentage
-            local diff_result=$(compare -metric AE "$base_file" "$new_file" "$diff_file" 2>&1 || true)
+            # Get pixel difference percentage (with fuzz tolerance to ignore time/battery changes)
+            local diff_result=$(compare -fuzz ${FUZZ_TOLERANCE}% -metric AE "$base_file" "$new_file" "$diff_file" 2>&1 || true)
             local diff_pixels=$(echo "$diff_result" | grep -o '[0-9]*' | head -1 || echo "0")
 
             # Get image dimensions for percentage calculation
