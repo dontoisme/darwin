@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Darwin - Visual Regression Testing for iOS</title>
-    <meta name="description" content="Git-aware visual regression testing and development timelapse for iOS apps. Watch your app evolve commit-by-commit.">
+    <title>Darwin — Visual Regression Testing for AI-Assisted iOS Development</title>
+    <meta name="description" content="Visual regression testing for iOS in the vibe coding era. See exactly what changed—whether you wrote it or your AI did. Built for solo builders and AI-assisted development.">
     <meta name="keywords" content="iOS, visual regression testing, screenshot testing, XCUITest, Swift, Xcode, git, timelapse">
     <meta name="author" content="Don Hogan">
 
     <!-- Open Graph / Social -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Darwin - Visual Regression Testing for iOS">
-    <meta property="og:description" content="Git-aware visual regression testing and development timelapse for iOS apps.">
+    <meta property="og:title" content="Darwin — Visual Regression Testing for AI-Assisted iOS Development">
+    <meta property="og:description" content="Visual regression testing for iOS in the vibe coding era. See exactly what changed—whether you wrote it or your AI did. Built for solo builders and AI-assisted development.">
     <meta property="og:url" content="https://dontoisme.github.io/darwin">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Darwin - Visual Regression Testing for iOS">
-    <meta name="twitter:description" content="Git-aware visual regression testing and development timelapse for iOS apps.">
+    <meta name="twitter:title" content="Darwin — Visual Regression Testing for AI-Assisted iOS Development">
+    <meta name="twitter:description" content="Visual regression testing for iOS in the vibe coding era. See exactly what changed—whether you wrote it or your AI did.">
 
     <style>
         :root {
@@ -300,6 +300,18 @@
             font-size: 14px;
         }
 
+        .feature-badge {
+            display: inline-block;
+            font-size: 11px;
+            padding: 2px 8px;
+            background: var(--border);
+            color: var(--text-muted);
+            border-radius: 12px;
+            margin-left: 8px;
+            font-weight: 500;
+            vertical-align: middle;
+        }
+
         /* How it works */
         .how-it-works {
             padding: 60px 0;
@@ -487,10 +499,10 @@
         <section class="hero">
             <div class="logo">🧬</div>
             <h1>Darwin</h1>
-            <p class="tagline">Watch your iOS app evolve</p>
+            <p class="tagline">Your AI's eyes on the build</p>
             <p class="hero-description">
-                Git-aware visual regression testing and development timelapse for iOS.
-                Capture only what changed, diff at the pixel level, explore your UI timeline.
+                Visual regression testing for the vibe coding era.
+                See exactly what changed—whether you wrote it or your AI did.
             </p>
             <div class="cta-buttons">
                 <a href="https://github.com/dontoisme/darwin" class="btn btn-primary">
@@ -556,12 +568,17 @@
                 <div class="feature">
                     <div class="feature-icon">🎯</div>
                     <h3>Smart Capture</h3>
-                    <p>Only screenshot screens affected by your code changes. No wasted CI time on unchanged UI.</p>
+                    <p>Only screenshot screens affected by your code changes. Darwin auto-detects new views and updates its manifest—no manual config maintenance.</p>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">🔍</div>
                     <h3>Pixel-Level Diff</h3>
                     <p>ImageMagick-powered comparison catches even subtle visual regressions with HTML reports.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🤖</div>
+                    <h3>AI-Aware Diffing <span class="feature-badge">Coming soon</span></h3>
+                    <p>Structured diff reports your AI can review. Close the loop—let the same assistant that wrote the code verify the visual result.</p>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">📊</div>
@@ -643,8 +660,8 @@
                 <div class="step">
                     <div class="step-number">4</div>
                     <div class="step-content">
-                        <h3>Explore in the viewer</h3>
-                        <p>Browse captures, compare changes, watch the timelapse, explore the map</p>
+                        <h3>Review what changed</h3>
+                        <p>Browse in the viewer, or feed structured diffs to your AI for automated review.</p>
                     </div>
                 </div>
             </div>
@@ -674,10 +691,11 @@
         <section class="use-cases">
             <h2>Use Cases</h2>
             <div class="use-case-grid">
-                <div class="use-case"><strong>Visual regression testing</strong> — Catch unintended UI changes before they ship</div>
-                <div class="use-case"><strong>Design review</strong> — Generate visual diffs for PR reviews</div>
-                <div class="use-case"><strong>AI-assisted development</strong> — Track changes made by AI coding assistants</div>
-                <div class="use-case"><strong>Documentation</strong> — Build a visual history of your app's evolution</div>
+                <div class="use-case"><strong>AI-assisted development</strong> — Your AI added a settings screen. Did it accidentally break the home view? Darwin shows you.</div>
+                <div class="use-case"><strong>Solo builder sanity check</strong> — No QA team? No problem. Automated visual history keeps you honest with yourself.</div>
+                <div class="use-case"><strong>Visual regression testing</strong> — Catch unintended UI changes before they ship.</div>
+                <div class="use-case"><strong>Design review</strong> — Generate visual diffs for PR reviews or async feedback.</div>
+                <div class="use-case"><strong>Development timelapse</strong> — Build a visual history of your app's evolution. Great for demos and retrospectives.</div>
             </div>
         </section>
     </div>
