@@ -2,6 +2,16 @@
 
 All notable changes to Darwin will be documented in this file.
 
+## [1.5.1] - 2025-12-20
+
+### Added
+- **`--ai-interactive` mode** — Outputs structured JSON questions for Claude Code/Cursor native UI
+- **AI-first Quick Start** — README now leads with paste-into-AI-assistant flow
+- **Setup instructions in AI rules** — Generated CLAUDE.md includes Darwin setup instructions
+
+### Changed
+- Darwin is now fully "AI-native" — designed to be invoked by AI assistants, not just humans
+
 ## [1.5.0] - 2025-12-20
 
 ### Added
