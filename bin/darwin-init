@@ -466,9 +466,15 @@ if [ ! -f "Screenshots/manifest.json" ]; then
       "name": "Home",
       "description": "Main home screen",
       "test": "testScreenshot_01_Home",
-      "sources": [
-        "Sources/Views/HomeView.swift"
-      ]
+      "sources": [],
+      "flows_to": []
+    }
+  },
+  "groups": {
+    "main": {
+      "name": "Main",
+      "color": "#58a6ff",
+      "screens": ["01-home"]
     }
   }
 }

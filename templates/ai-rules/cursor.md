@@ -56,17 +56,29 @@ func testScreenshot_01_Home() {
 
 ## When Adding Screens
 
-Remind user to update Screenshots/manifest.json with:
-- Screen definition including sources array
-- flows_to connections with element identifiers
+Update Screenshots/manifest.json with:
+1. Screen definition in `screens` with sources array and flows_to connections
+2. Add screen ID to appropriate group in `groups`
+3. Create new group if it's a new app area
 
 ```json
 {
-  "01-home": {
-    "name": "Home",
-    "test": "testScreenshot_01_Home",
-    "sources": ["Sources/Views/HomeView.swift"],
-    "flows_to": [{ "target": "02-settings", "element": "home_button_settings" }]
+  "screens": {
+    "01-home": {
+      "name": "Home",
+      "test": "testScreenshot_01_Home",
+      "sources": ["Sources/Views/HomeView.swift"],
+      "flows_to": [{"target": "02-settings", "element": "home_button_settings", "type": "navigation"}]
+    }
+  },
+  "groups": {
+    "main": {
+      "name": "Main Flow",
+      "color": "#58a6ff",
+      "screens": ["01-home", "02-library"]
+    }
   }
 }
 ```
+
+**Groups are required for the map view.** Use distinct hex colors for each group.

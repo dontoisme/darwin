@@ -2,6 +2,16 @@
 
 All notable changes to Darwin will be documented in this file.
 
+## [1.5.5] - 2025-12-21
+
+### Fixed
+- **Map view empty without groups** — Auto-generate default group when manifest has no `groups` defined
+- **flows_to object format in layout** — Fixed layout algorithm to handle new object-based flows_to format
+
+### Changed
+- **Template manifest now includes groups** — New projects start with groups structure for map view
+- **AI rules updated** — Claude/Cursor templates now document groups as required for map view
+
 ## [1.5.4] - 2025-12-20
 
 ### Fixed

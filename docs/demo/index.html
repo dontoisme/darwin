@@ -1998,13 +1998,26 @@
                 H_PADDING = 80;
                 V_PADDING = 120;
             }
-            const groups = MANIFEST.groups || {};
+            let groups = MANIFEST.groups || {};
+
+            // Auto-create default group if none defined
+            if (Object.keys(groups).length === 0) {
+                const allScreenIds = Object.keys(MANIFEST.screens);
+                groups = {
+                    'all': {
+                        name: 'All Screens',
+                        color: '#58a6ff',
+                        screens: allScreenIds
+                    }
+                };
+            }
 
             // Build reverse flow map (who flows TO this screen)
             const incomingFlows = {};
             for (const [screenId, screen] of Object.entries(MANIFEST.screens)) {
                 if (!incomingFlows[screenId]) incomingFlows[screenId] = [];
-                for (const targetId of (screen.flows_to || [])) {
+                for (const flow of (screen.flows_to || [])) {
+                    const targetId = parseFlowTarget(flow).target;
                     if (!incomingFlows[targetId]) incomingFlows[targetId] = [];
                     incomingFlows[targetId].push(screenId);
                 }
@@ -2053,7 +2066,8 @@
                     screenDepth[id] = depth;
 
                     const screen = MANIFEST.screens[id];
-                    for (const targetId of (screen?.flows_to || [])) {
+                    for (const flow of (screen?.flows_to || [])) {
+                        const targetId = parseFlowTarget(flow).target;
                         if (groupScreens.has(targetId) && !visited.has(targetId)) {
                             queue.push({ id: targetId, depth: depth + 1 });
                         }

@@ -97,11 +97,14 @@ func testScreenshot_02_Settings() {
 }
 ```
 
-## Manifest Sync
+## Manifest Structure
 
-When adding new screens, remind user to update `Screenshots/manifest.json`:
-- Add screen definition with `sources` array pointing to Swift files
-- Add `flows_to` with element identifiers for navigation connections
+The manifest organizes screens into **groups** for the map view. Groups represent logical areas of your app (e.g., "Onboarding", "Settings", "Main Flow").
+
+When adding new screens, update `Screenshots/manifest.json`:
+1. Add screen definition to `screens` with `sources` array and `flows_to` connections
+2. Add the screen ID to the appropriate group in `groups`
+3. If it's a new area of the app, create a new group with a distinct color
 
 ```json
 {
@@ -111,13 +114,29 @@ When adding new screens, remind user to update `Screenshots/manifest.json`:
       "test": "testScreenshot_01_Home",
       "sources": ["Sources/Views/HomeView.swift"],
       "flows_to": [
-        {
-          "target": "02-settings",
-          "element": "home_button_settings",
-          "type": "navigation"
-        }
+        {"target": "02-settings", "element": "home_button_settings", "type": "navigation"}
       ]
+    },
+    "02-settings": {
+      "name": "Settings",
+      "test": "testScreenshot_02_Settings",
+      "sources": ["Sources/Views/SettingsView.swift"],
+      "flows_to": []
+    }
+  },
+  "groups": {
+    "main": {
+      "name": "Main Flow",
+      "color": "#58a6ff",
+      "screens": ["01-home", "02-library"]
+    },
+    "settings": {
+      "name": "Settings",
+      "color": "#f78166",
+      "screens": ["02-settings", "03-settings-theme"]
     }
   }
 }
 ```
+
+**Groups are required for the map view.** Use distinct colors for each group (hex format).
