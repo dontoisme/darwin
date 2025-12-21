@@ -28,17 +28,6 @@ echo -e "${GREEN}🧬 Darwin - Project Setup${NC}"
 echo "   Watch your iOS app evolve"
 echo ""
 
-# Check if already initialized
-if [ -f "darwin.json" ]; then
-    echo -e "${YELLOW}Warning: darwin.json already exists in this directory.${NC}"
-    read -p "Overwrite? [y/N] " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Aborted."
-        exit 0
-    fi
-fi
-
 # Parse arguments
 ARG_PROJECT=""
 ARG_SCHEME=""
@@ -137,6 +126,17 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Check if already initialized (skip in AI modes)
+if [ -f "darwin.json" ] && [ "$AI_MODE" != true ] && [ "$AI_INTERACTIVE" != true ]; then
+    echo -e "${YELLOW}Warning: darwin.json already exists in this directory.${NC}"
+    read -p "Overwrite? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Aborted."
+        exit 0
+    fi
+fi
+
 # Auto-detect project
 PROJECT=""
 if [ -n "$ARG_PROJECT" ]; then
@@ -174,8 +174,9 @@ if [ "$AI_INTERACTIVE" = true ]; then
     # Get available simulators
     SIMULATORS=$(xcrun simctl list devices available 2>/dev/null | grep -E "iPhone" | grep -v "unavailable" | head -8 | sed 's/^ *//' | sed 's/ (.*//' | tr '\n' '|' | sed 's/|$//')
 
-    # Default scheme
-    DEFAULT_SCHEME=$(basename "$PROJECT" | sed 's/\.\(xcodeproj\|xcworkspace\)$//')
+    # Default scheme (strip .xcodeproj/.xcworkspace extension)
+    DEFAULT_SCHEME=$(basename "$PROJECT" .xcodeproj)
+    DEFAULT_SCHEME=$(basename "$DEFAULT_SCHEME" .xcworkspace)
 
     # Output structured questions for Claude Code
     echo ""
