@@ -48,6 +48,8 @@ ARG_MODE=""
 SKIP_PROMPTS=false
 COPY_TEMPLATES=false
 WITH_AI_RULES=false
+AI_MODE=false
+AI_INTERACTIVE=false
 
 # Automation settings (defaults for Autopilot mode)
 MODE="autopilot"
@@ -90,6 +92,16 @@ while [[ $# -gt 0 ]]; do
             WITH_AI_RULES=true
             shift
             ;;
+        --ai)
+            AI_MODE=true
+            SKIP_PROMPTS=true
+            shift
+            ;;
+        --ai-interactive)
+            AI_MODE=true
+            AI_INTERACTIVE=true
+            shift
+            ;;
         --help|-h)
             echo "Usage: darwin init [OPTIONS]"
             echo ""
@@ -102,6 +114,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --with-templates    Copy Swift template files to project"
             echo "  --with-ai-rules     Generate AI coding assistant rules"
             echo "  -y, --yes           Skip prompts, use Autopilot mode"
+            echo "  --ai                AI-initiated mode: non-interactive with handoff instructions"
+            echo "  --ai-interactive    AI mode with structured prompts for Claude Code UI"
             echo "  --help              Show this help"
             echo ""
             echo "Modes:"
@@ -146,6 +160,60 @@ if [ -z "$PROJECT" ]; then
 fi
 
 echo -e "${GREEN}Found:${NC} $PROJECT"
+
+# AI-Interactive Mode: Output structured questions for Claude Code UI
+if [ "$AI_INTERACTIVE" = true ]; then
+    # Get available schemes
+    SCHEMES=""
+    if [[ "$PROJECT" == *.xcworkspace ]]; then
+        SCHEMES=$(xcodebuild -workspace "$PROJECT" -list 2>/dev/null | grep -A100 "Schemes:" | tail -n +2 | head -10 | sed 's/^ *//' | tr '\n' '|' | sed 's/|$//')
+    else
+        SCHEMES=$(xcodebuild -project "$PROJECT" -list 2>/dev/null | grep -A100 "Schemes:" | tail -n +2 | head -10 | sed 's/^ *//' | tr '\n' '|' | sed 's/|$//')
+    fi
+
+    # Get available simulators
+    SIMULATORS=$(xcrun simctl list devices available 2>/dev/null | grep -E "iPhone" | grep -v "unavailable" | head -8 | sed 's/^ *//' | sed 's/ (.*//' | tr '\n' '|' | sed 's/|$//')
+
+    # Default scheme
+    DEFAULT_SCHEME=$(basename "$PROJECT" | sed 's/\.\(xcodeproj\|xcworkspace\)$//')
+
+    # Output structured questions for Claude Code
+    echo ""
+    echo "DARWIN_AI_QUESTIONS_START"
+    cat << EOF
+{
+  "questions": [
+    {
+      "id": "scheme",
+      "question": "Which scheme should Darwin use for building?",
+      "type": "select",
+      "options": ["$SCHEMES"],
+      "default": "$DEFAULT_SCHEME"
+    },
+    {
+      "id": "destination",
+      "question": "Which simulator should Darwin use for screenshots?",
+      "type": "select",
+      "options": ["$SIMULATORS"],
+      "default": "iPhone 16 Pro"
+    },
+    {
+      "id": "mode",
+      "question": "How automated should Darwin be?",
+      "type": "select",
+      "options": ["Autopilot - Everything automatic after commits|Guided - Prompts after commits|Manual - You run commands when needed"],
+      "default": "Autopilot - Everything automatic after commits"
+    }
+  ],
+  "continue_with": "darwin init --ai --scheme <scheme> --destination 'platform=iOS Simulator,name=<destination>' --mode <mode>"
+}
+EOF
+    echo "DARWIN_AI_QUESTIONS_END"
+    echo ""
+    echo "Please present these questions to the user using your native UI,"
+    echo "then run the continue_with command with the user's selections."
+    exit 0
+fi
 
 # Determine scheme
 SCHEME=""
@@ -391,7 +459,22 @@ fi
 
 # Auto-detect screens and populate manifest
 SCREENS_ADDED=0
-if [ "$SKIP_PROMPTS" != true ]; then
+if [ "$AI_MODE" = true ]; then
+    # AI mode: automatically detect and add screens
+    echo ""
+    echo -e "${CYAN}Scanning codebase for screens...${NC}"
+
+    DETECTED=$("$SCRIPT_DIR/darwin-detect" --list 2>/dev/null || echo "")
+    if [ -n "$DETECTED" ]; then
+        SCREEN_COUNT=$(echo "$DETECTED" | wc -l | tr -d ' ')
+        if [ "$SCREEN_COUNT" -gt 0 ]; then
+            echo -e "  ${GREEN}✓${NC} Found $SCREEN_COUNT screen-like views"
+            "$SCRIPT_DIR/darwin-detect" --add --yes 2>/dev/null
+            SCREENS_ADDED=$SCREEN_COUNT
+            echo -e "  ${GREEN}✓${NC} Added to manifest"
+        fi
+    fi
+elif [ "$SKIP_PROMPTS" != true ]; then
     echo ""
     echo -e "${CYAN}Scanning codebase for screens...${NC}"
 
@@ -425,7 +508,25 @@ fi
 
 # Generate test stubs
 TESTS_GENERATED=false
-if [ "$SKIP_PROMPTS" != true ] && [ "$SCREENS_ADDED" -gt 0 ]; then
+if [ "$AI_MODE" = true ] && [ "$SCREENS_ADDED" -gt 0 ]; then
+    # AI mode: automatically generate test stubs
+    echo ""
+    echo -e "${CYAN}Generating test stubs...${NC}"
+    TEST_FILE_PATH="$TEST_TARGET/ScreenshotTests.swift"
+    "$SCRIPT_DIR/darwin-manifest" sync --generate-file "$TEST_FILE_PATH" 2>/dev/null
+    echo -e "  ${GREEN}✓${NC} Created $TEST_FILE_PATH"
+
+    # Copy helper templates
+    HELPERS_DIR="$TEST_TARGET/Helpers"
+    mkdir -p "$HELPERS_DIR"
+    if [ -d "$TEMPLATES_DIR" ]; then
+        cp "$TEMPLATES_DIR/XCUIApplication+Screenshots.swift" "$HELPERS_DIR/" 2>/dev/null && \
+            echo -e "  ${GREEN}✓${NC} Copied XCUIApplication+Screenshots.swift"
+        cp "$TEMPLATES_DIR/BaseScreenshotTests.swift" "$HELPERS_DIR/" 2>/dev/null && \
+            echo -e "  ${GREEN}✓${NC} Copied BaseScreenshotTests.swift"
+    fi
+    TESTS_GENERATED=true
+elif [ "$SKIP_PROMPTS" != true ] && [ "$SCREENS_ADDED" -gt 0 ]; then
     echo ""
     read -p "Generate test stubs? [Y/n]: " GEN_TESTS_RESP
     if [[ ! $GEN_TESTS_RESP =~ ^[Nn]$ ]]; then
@@ -447,8 +548,8 @@ if [ "$SKIP_PROMPTS" != true ] && [ "$SCREENS_ADDED" -gt 0 ]; then
     fi
 fi
 
-# Demo viewer prompt
-if [ "$SKIP_PROMPTS" != true ]; then
+# Demo viewer prompt (skip in AI mode - no point opening browser)
+if [ "$SKIP_PROMPTS" != true ] && [ "$AI_MODE" != true ]; then
     echo ""
     read -p "See what Darwin looks like? [Y/n]: " SHOW_DEMO_RESP
     if [[ ! $SHOW_DEMO_RESP =~ ^[Nn]$ ]]; then
@@ -625,8 +726,53 @@ echo ""
 # AI-Assistant Handoff
 # When running in Claude Code or Cursor, output actionable instructions
 # that the AI assistant can pick up and execute to complete the setup
-if [ "$TESTS_GENERATED" = true ]; then
-    # Full handoff - tests generated, AI should complete navigation logic
+if [ "$AI_MODE" = true ]; then
+    # AI-initiated mode: always show handoff instructions
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}  AI ASSISTANT: Complete Darwin Setup${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    if [ "$TESTS_GENERATED" = true ]; then
+        echo "Test stubs have been generated. Please complete the setup:"
+        echo ""
+        echo "1. Read Screenshots/manifest.json to see the detected screens"
+        echo ""
+        echo "2. For each screen in the manifest:"
+        echo "   - Read its source file(s)"
+        echo "   - Find NavigationLink, .sheet, .fullScreenCover destinations"
+        echo "   - Update flows_to with the screen IDs of those destinations"
+        echo ""
+        echo "3. Read $TEST_TARGET/ScreenshotTests.swift"
+        echo ""
+        echo "4. For each test stub, add XCUITest navigation logic:"
+        echo "   - Use app.buttons[], app.cells[], app.tabBars[] to navigate"
+        echo "   - Add waits for async loading if needed"
+        echo "   - The takeScreenshotWithElements() call is already there"
+        echo ""
+        echo "5. Run: darwin capture --baseline"
+    else
+        echo "Please analyze the codebase and complete the setup:"
+        echo ""
+        echo "1. Find all SwiftUI View structs that are navigable screens"
+        echo ""
+        echo "2. Add them to Screenshots/manifest.json with:"
+        echo "   - Screen ID format: NN-kebab-case-name (e.g., 01-home, 02-settings)"
+        echo "   - Display name, source file paths, flows_to connections"
+        echo ""
+        echo "3. Create $TEST_TARGET/ScreenshotTests.swift with:"
+        echo "   - Import XCTest and the app module"
+        echo "   - A test method for each screen"
+        echo "   - Navigation logic to reach each screen"
+        echo "   - Call takeScreenshotWithElements(screenId, app: app)"
+        echo ""
+        echo "4. Run: darwin capture --baseline"
+    fi
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+elif [ "$TESTS_GENERATED" = true ]; then
+    # User-initiated with tests generated - show handoff for navigation logic
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${CYAN}  AI ASSISTANT: Complete Darwin Setup${NC}"
