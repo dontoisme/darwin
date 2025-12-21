@@ -518,12 +518,27 @@
         </section>
 
         <section class="install" id="install">
-            <div class="install-label">Install with Homebrew</div>
+            <div class="install-label">Step 1: Install with Homebrew</div>
             <div class="install-code">
                 <code>brew tap dontoisme/darwin && brew install darwin</code>
                 <button class="copy-btn" onclick="navigator.clipboard.writeText('brew tap dontoisme/darwin && brew install darwin')">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                 </button>
+            </div>
+            <div style="margin-top: 24px;">
+                <div class="install-label">Step 2: Paste into Claude Code or Cursor</div>
+                <div class="install-code">
+                    <code style="white-space: pre-wrap; color: var(--text);">Set up Darwin for visual regression testing.
+Run: darwin init --ai-interactive
+Present the options to me, then complete the setup including test navigation logic.
+Finally, run: darwin capture --baseline</code>
+                    <button class="copy-btn" onclick="navigator.clipboard.writeText('Set up Darwin for visual regression testing.\nRun: darwin init --ai-interactive\nPresent the options to me, then complete the setup including test navigation logic.\nFinally, run: darwin capture --baseline')">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    </button>
+                </div>
+                <p style="color: var(--text-muted); font-size: 14px; margin-top: 12px;">
+                    Your AI assistant handles everything—detecting screens, writing tests, capturing screenshots.
+                </p>
             </div>
         </section>
 
@@ -668,24 +683,25 @@
         </section>
 
         <section class="example">
-            <h2>Quick Start</h2>
+            <h2>How It Works</h2>
             <div class="code-block">
-                <div class="code-header">Terminal</div>
-                <pre><span class="comment"># Initialize in your iOS project</span>
-<span class="command">darwin init</span>
+                <div class="code-header">What your AI assistant does</div>
+                <pre><span class="comment"># 1. Runs darwin init, presents options in native UI</span>
+<span class="command">darwin init</span> <span class="flag">--ai-interactive</span>
 
-<span class="comment"># Capture baseline screenshots</span>
+<span class="comment"># 2. Detects all your SwiftUI screens</span>
+<span class="command">darwin detect</span> <span class="flag">--add</span>
+
+<span class="comment"># 3. Writes test navigation logic for each screen</span>
+<span class="comment"># 4. Captures baseline screenshots</span>
 <span class="command">darwin capture</span> <span class="flag">--baseline</span>
 
-<span class="comment"># Make changes, then smart capture</span>
-<span class="command">darwin capture</span>
-
-<span class="comment"># Open the visual timeline</span>
-<span class="command">darwin viewer</span>
-
-<span class="comment"># Optional: auto-capture on commits</span>
-<span class="command">darwin hook install</span></pre>
+<span class="comment"># 5. Opens the visual timeline</span>
+<span class="command">darwin viewer</span></pre>
             </div>
+            <p style="color: var(--text-muted); font-size: 14px; margin-top: 16px; text-align: center;">
+                After setup, Darwin auto-captures after every commit. Just code—Darwin watches.
+            </p>
         </section>
 
         <section class="use-cases">
