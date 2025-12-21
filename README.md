@@ -135,7 +135,7 @@ Darwin uses `darwin.json` in your project root:
   "scheme": "MyApp",
   "testTarget": "MyAppUITests",
   "testClass": "ScreenshotTests",
-  "destination": "platform=iOS Simulator,name=iPhone 16 Pro",
+  "destination": "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.1",
   "outputDir": "Screenshots",
   "manifest": "Screenshots/manifest.json",
   "slack_webhook": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"

@@ -38,14 +38,15 @@ for arg in "$@"; do
             echo "Usage: darwin capture [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --baseline       Capture ALL screens (for first run)"
-            echo "  --all            Force capture all screens"
-            echo "  --dry-run        Show what would be captured without running"
-            echo "  --screens IDS    Capture specific screens (comma-separated, e.g., 14,21)"
-            echo "  --project FILE   Override project file"
-            echo "  --scheme NAME    Override scheme name"
-            echo "  --destination D  Override simulator destination"
-            echo "  --help           Show this help message"
+            echo "  --baseline         Capture ALL screens (for first run)"
+            echo "  --all              Force capture all screens"
+            echo "  --dry-run          Show what would be captured without running"
+            echo "  --screens IDS      Capture specific screens (comma-separated, e.g., 14,21)"
+            echo "  --extract-from F   Extract screenshots from existing xcresult file"
+            echo "  --project FILE     Override project file"
+            echo "  --scheme NAME      Override scheme name"
+            echo "  --destination D    Override simulator destination"
+            echo "  --help             Show this help message"
             echo ""
             echo "Default: Smart capture - only screens with changed source files"
             exit 0
@@ -99,6 +100,7 @@ echo ""
 MODE="smart"
 DRY_RUN=false
 SPECIFIC_SCREENS=""
+EXTRACT_FROM=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -117,6 +119,11 @@ while [[ $# -gt 0 ]]; do
         --screens)
             MODE="specific"
             SPECIFIC_SCREENS="$2"
+            shift 2
+            ;;
+        --extract-from)
+            MODE="extract"
+            EXTRACT_FROM="$2"
             shift 2
             ;;
         --project)
@@ -280,6 +287,82 @@ case "$MODE" in
             fi
         done
         ;;
+    extract)
+        echo -e "${YELLOW}Mode: EXTRACT (from xcresult)${NC}"
+        if [ ! -d "$EXTRACT_FROM" ]; then
+            echo -e "${RED}Error: xcresult not found: $EXTRACT_FROM${NC}"
+            exit 1
+        fi
+        CAPTURE_ID="$GIT_COMMIT"
+        PARENT_ID=$(get_latest_capture)
+        OUTPUT_DIR="$CAPTURES_DIR/$CAPTURE_ID"
+        mkdir -p "$OUTPUT_DIR"
+
+        echo "Extracting from: $EXTRACT_FROM"
+        echo "Output: $OUTPUT_DIR"
+        echo ""
+
+        # Parse xcresult JSON to find all PNG attachments with their names and IDs
+        EXTRACTED_COUNT=0
+        xcrun xcresulttool get --path "$EXTRACT_FROM" --format json 2>/dev/null | \
+            jq -r '
+                .. |
+                select(type == "object" and .attachments != null) |
+                .attachments[] |
+                select(.uniformTypeIdentifier == "public.png" and .payloadRef != null) |
+                "\(.name)|\(.payloadRef.id)"
+            ' 2>/dev/null | \
+            while IFS='|' read -r name ref_id; do
+                if [ -n "$name" ] && [ -n "$ref_id" ]; then
+                    # Only extract Darwin screenshots (have numeric prefix like "01-")
+                    if [[ "$name" =~ ^[0-9]{2}- ]]; then
+                        xcrun xcresulttool get --path "$EXTRACT_FROM" --id "$ref_id" --format raw > "$OUTPUT_DIR/$name.png" 2>/dev/null
+                        if [ -f "$OUTPUT_DIR/$name.png" ] && [ -s "$OUTPUT_DIR/$name.png" ]; then
+                            echo -e "  ${GREEN}→${NC} Extracted: $name.png"
+                            EXTRACTED_COUNT=$((EXTRACTED_COUNT + 1))
+                        fi
+                    fi
+                fi
+            done
+
+        # Count and report
+        SCREENSHOT_COUNT=$(ls -1 "$OUTPUT_DIR"/*.png 2>/dev/null | wc -l | tr -d ' ')
+        echo ""
+        echo -e "${GREEN}Extracted $SCREENSHOT_COUNT screenshots${NC}"
+
+        if [ "$SCREENSHOT_COUNT" -gt 0 ]; then
+            # Generate metadata
+            CAPTURED_SCREENS=$(ls -1 "$OUTPUT_DIR"/*.png 2>/dev/null | xargs -I {} basename {} .png | jq -R -s 'split("\n") | map(select(length > 0))' 2>/dev/null || echo "[]")
+            cat > "$OUTPUT_DIR/metadata.json" << EOF
+{
+  "id": "$CAPTURE_ID",
+  "commit": "$GIT_COMMIT",
+  "commitFull": "$GIT_COMMIT_FULL",
+  "branch": "$GIT_BRANCH",
+  "timestamp": "$TIMESTAMP_ISO",
+  "mode": "extract",
+  "parent": $([ -n "$PARENT_ID" ] && echo "\"$PARENT_ID\"" || echo "null"),
+  "capturedScreens": $CAPTURED_SCREENS,
+  "screenCount": $SCREENSHOT_COUNT,
+  "extractedFrom": "$EXTRACT_FROM"
+}
+EOF
+            # Add to index
+            init_index
+            EXISTING=$(jq -r ".captures[] | select(.id == \"$CAPTURE_ID\") | .id" "$INDEX_FILE" 2>/dev/null)
+            if [ -z "$EXISTING" ]; then
+                add_to_index "$CAPTURE_ID" "$PARENT_ID" "$SCREENSHOT_COUNT"
+            fi
+
+            # Regenerate viewer
+            if [ -f "$SCRIPT_DIR/darwin-viewer" ]; then
+                echo ""
+                echo -e "${CYAN}Regenerating viewer...${NC}"
+                "$SCRIPT_DIR/darwin-viewer" --generate-only 2>/dev/null && echo -e "${GREEN}✓ Viewer updated${NC}"
+            fi
+        fi
+        exit 0
+        ;;
     smart)
         echo -e "${YELLOW}Mode: SMART (detecting changes)${NC}"
         CAPTURE_ID="$GIT_COMMIT"
@@ -394,6 +477,39 @@ if [ -d "$CONFIG_OUTPUT_PATH" ]; then
             mv "$png" "$OUTPUT_DIR/" 2>/dev/null || true
         fi
     done
+fi
+
+# Check if we got any screenshots via filesystem
+INITIAL_COUNT=$(ls -1 "$OUTPUT_DIR"/*.png 2>/dev/null | wc -l | tr -d ' ')
+
+# If no screenshots found, try to extract from xcresult
+if [ "$INITIAL_COUNT" -eq 0 ]; then
+    XCRESULT_PATH="$CONFIG_RESULTS_PATH/screenshots_$TIMESTAMP.xcresult"
+    if [ -d "$XCRESULT_PATH" ]; then
+        echo -e "${YELLOW}No screenshots in output dir, extracting from xcresult...${NC}"
+
+        # Parse xcresult JSON to find all PNG attachments with their names and IDs
+        xcrun xcresulttool get --path "$XCRESULT_PATH" --format json 2>/dev/null | \
+            jq -r '
+                .. |
+                select(type == "object" and .attachments != null) |
+                .attachments[] |
+                select(.uniformTypeIdentifier == "public.png" and .payloadRef != null) |
+                "\(.name)|\(.payloadRef.id)"
+            ' 2>/dev/null | \
+            while IFS='|' read -r name ref_id; do
+                if [ -n "$name" ] && [ -n "$ref_id" ]; then
+                    # Only extract Darwin screenshots (have numeric prefix like "01-")
+                    if [[ "$name" =~ ^[0-9]{2}- ]]; then
+                        # Extract the attachment by ID
+                        xcrun xcresulttool get --path "$XCRESULT_PATH" --id "$ref_id" --format raw > "$OUTPUT_DIR/$name.png" 2>/dev/null
+                        if [ -f "$OUTPUT_DIR/$name.png" ] && [ -s "$OUTPUT_DIR/$name.png" ]; then
+                            echo -e "  ${GREEN}→${NC} Extracted: $name.png"
+                        fi
+                    fi
+                fi
+            done
+    fi
 fi
 
 # Count screenshots

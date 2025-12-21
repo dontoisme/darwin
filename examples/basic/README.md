@@ -20,7 +20,7 @@ basic/
   "scheme": "BasicApp",
   "testTarget": "BasicAppUITests",
   "testClass": "ScreenshotTests",
-  "destination": "platform=iOS Simulator,name=iPhone 16 Pro",
+  "destination": "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.1",
   "outputDir": "Screenshots",
   "manifest": "Screenshots/manifest.json"
 }

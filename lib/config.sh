@@ -12,7 +12,7 @@ CONFIG_PROJECT=""
 CONFIG_SCHEME=""
 CONFIG_TEST_TARGET="UITests"
 CONFIG_TEST_CLASS="ScreenshotTests"
-CONFIG_DESTINATION="platform=iOS Simulator,name=iPhone 16 Pro"
+CONFIG_DESTINATION="platform=iOS Simulator,name=iPhone 17 Pro,OS=26.1"
 CONFIG_OUTPUT_DIR="Screenshots"
 CONFIG_MANIFEST="Screenshots/manifest.json"
 CONFIG_RESULTS_DIR="TestResults"
@@ -59,7 +59,7 @@ load_config() {
         CONFIG_SCHEME=$(jq -r '.scheme // empty' "$config_path")
         CONFIG_TEST_TARGET=$(jq -r '.testTarget // "UITests"' "$config_path")
         CONFIG_TEST_CLASS=$(jq -r '.testClass // "ScreenshotTests"' "$config_path")
-        CONFIG_DESTINATION=$(jq -r '.destination // "platform=iOS Simulator,name=iPhone 16 Pro"' "$config_path")
+        CONFIG_DESTINATION=$(jq -r '.destination // "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.1"' "$config_path")
         CONFIG_OUTPUT_DIR=$(jq -r '.outputDir // "Screenshots"' "$config_path")
         CONFIG_MANIFEST=$(jq -r '.manifest // "Screenshots/manifest.json"' "$config_path")
         CONFIG_RESULTS_DIR=$(jq -r '.resultsDir // "TestResults"' "$config_path")

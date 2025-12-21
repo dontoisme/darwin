@@ -2,6 +2,15 @@
 
 All notable changes to Darwin will be documented in this file.
 
+## [1.5.2] - 2025-12-20
+
+### Fixed
+- **Screenshots not saving to disk** — Added automatic extraction from xcresult when filesystem save fails (build settings don't pass through to test process environment)
+- **`--extract-from` option** — Manually extract screenshots from any xcresult file: `darwin capture --extract-from path/to.xcresult`
+
+### Added
+- Xcresult fallback extraction in darwin-capture (works around simulator sandbox limitations)
+
 ## [1.5.1] - 2025-12-20
 
 ### Added

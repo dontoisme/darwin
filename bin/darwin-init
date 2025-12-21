@@ -215,7 +215,7 @@ if [ "$AI_INTERACTIVE" = true ]; then
       "question": "Which simulator should Darwin use for screenshots?",
       "type": "select",
       "options": ["$SIMULATORS"],
-      "default": "iPhone 16 Pro"
+      "default": "iPhone 17 Pro"
     },
     {
       "id": "mode",
@@ -296,7 +296,7 @@ DESTINATION=""
 if [ -n "$ARG_DESTINATION" ]; then
     DESTINATION="$ARG_DESTINATION"
 else
-    DESTINATION="platform=iOS Simulator,name=iPhone 16 Pro"
+    DESTINATION="platform=iOS Simulator,name=iPhone 17 Pro,OS=26.1"
 fi
 
 if [ "$SKIP_PROMPTS" != true ]; then
