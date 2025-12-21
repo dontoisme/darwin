@@ -17,28 +17,47 @@ See exactly what changed—whether you wrote it or your AI did. Darwin tracks UI
 
 ## Quick Start
 
+### Install
+
 ```bash
-# Install via Homebrew
-brew tap dontoisme/darwin
-brew install darwin
-
-# Or clone and add to PATH
-git clone https://github.com/dontoisme/darwin.git
-export PATH="$PATH:$(pwd)/darwin/bin"
-
-# Initialize in your iOS project
-cd MyApp
-darwin init
-
-# Capture baseline screenshots
-darwin capture --baseline
-
-# Make changes, then capture again
-darwin capture
-
-# Open the visual timeline
-darwin viewer
+brew tap dontoisme/darwin && brew install darwin
 ```
+
+### Set Up (with AI Assistant)
+
+Open your iOS project in **Claude Code** or **Cursor**, then paste:
+
+```
+Set up Darwin for visual regression testing.
+Run: darwin init --ai-interactive
+Present the options to me, then complete the setup including test navigation logic.
+Finally, run: darwin capture --baseline
+```
+
+Your AI assistant will:
+1. Ask you to pick a scheme and simulator
+2. Detect all your SwiftUI screens
+3. Write the test navigation logic
+4. Capture your baseline screenshots
+5. Open the visual timeline
+
+That's it. You're done.
+
+---
+
+<details>
+<summary><b>Manual Setup</b> (without AI assistant)</summary>
+
+```bash
+cd MyApp
+darwin init                    # Interactive setup
+darwin detect --add            # Find screens, add to manifest
+# Edit test file to add navigation logic
+darwin capture --baseline      # Capture screenshots
+darwin viewer                  # Open timeline
+```
+
+</details>
 
 ## Commands
 
