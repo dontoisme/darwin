@@ -518,28 +518,29 @@
         </section>
 
         <section class="install" id="install">
-            <div class="install-label">Step 1: Install with Homebrew</div>
-            <div class="install-code">
-                <code>brew tap dontoisme/darwin && brew install darwin</code>
-                <button class="copy-btn" onclick="navigator.clipboard.writeText('brew tap dontoisme/darwin && brew install darwin')">
+            <div class="install-label">Paste into Claude Code or Cursor — that's it</div>
+            <div class="install-code" style="align-items: flex-start;">
+                <code style="white-space: pre-wrap; color: var(--text);">Install Darwin (brew tap dontoisme/darwin && brew install darwin) and set it up for visual regression testing. Run darwin init --ai-interactive, present the options to me, complete the setup including test navigation logic, then capture baseline screenshots.</code>
+                <button class="copy-btn" style="margin-top: 4px;" onclick="navigator.clipboard.writeText('Install Darwin (brew tap dontoisme/darwin && brew install darwin) and set it up for visual regression testing. Run darwin init --ai-interactive, present the options to me, complete the setup including test navigation logic, then capture baseline screenshots.')">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                 </button>
             </div>
-            <div style="margin-top: 24px;">
-                <div class="install-label">Step 2: Paste into Claude Code or Cursor</div>
-                <div class="install-code">
-                    <code style="white-space: pre-wrap; color: var(--text);">Set up Darwin for visual regression testing.
-Run: darwin init --ai-interactive
-Present the options to me, then complete the setup including test navigation logic.
-Finally, run: darwin capture --baseline</code>
-                    <button class="copy-btn" onclick="navigator.clipboard.writeText('Set up Darwin for visual regression testing.\nRun: darwin init --ai-interactive\nPresent the options to me, then complete the setup including test navigation logic.\nFinally, run: darwin capture --baseline')">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                    </button>
+            <p style="color: var(--text-muted); font-size: 14px; margin-top: 12px;">
+                Your AI installs Darwin, detects your screens, writes the tests, and captures screenshots. You just pick options.
+            </p>
+
+            <details style="margin-top: 24px;">
+                <summary style="color: var(--text-muted); cursor: pointer; font-size: 14px;">Manual install</summary>
+                <div style="margin-top: 16px;">
+                    <div class="install-code">
+                        <code>brew tap dontoisme/darwin && brew install darwin</code>
+                        <button class="copy-btn" onclick="navigator.clipboard.writeText('brew tap dontoisme/darwin && brew install darwin')">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        </button>
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">Then run <code style="color: var(--accent-green);">darwin init</code> in your iOS project.</p>
                 </div>
-                <p style="color: var(--text-muted); font-size: 14px; margin-top: 12px;">
-                    Your AI assistant handles everything—detecting screens, writing tests, capturing screenshots.
-                </p>
-            </div>
+            </details>
         </section>
 
         <section class="demo">
