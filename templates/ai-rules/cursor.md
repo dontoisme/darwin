@@ -82,3 +82,22 @@ Update Screenshots/manifest.json with:
 ```
 
 **Groups are required for the map view.** Use distinct hex colors for each group.
+
+## Firebase-Dependent Screens
+
+For screens requiring Firebase auth, add `requires_firebase: true`:
+
+```json
+"12-profile-logged-in": {
+  "name": "Profile - Logged In",
+  "test": "testScreenshot_12_ProfileLoggedIn",
+  "requires_firebase": true,
+  "sources": ["Sources/Views/ProfileView.swift"]
+}
+```
+
+Darwin auto-detects Firebase projects and checks for running emulators.
+
+To capture Firebase screens:
+1. Start emulators: `firebase emulators:start --only auth,firestore`
+2. Run: `darwin capture --firebase`

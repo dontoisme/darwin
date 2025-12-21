@@ -24,6 +24,9 @@ source "$LIB_DIR/config.sh"
 # Source webhook notifications
 source "$LIB_DIR/webhooks.sh"
 
+# Source Firebase integration
+source "$LIB_DIR/firebase.sh"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -43,6 +46,7 @@ for arg in "$@"; do
             echo "  --dry-run          Show what would be captured without running"
             echo "  --screens IDS      Capture specific screens (comma-separated, e.g., 14,21)"
             echo "  --extract-from F   Extract screenshots from existing xcresult file"
+            echo "  --firebase         Run with Firebase emulators (for auth-required screens)"
             echo "  --project FILE     Override project file"
             echo "  --scheme NAME      Override scheme name"
             echo "  --destination D    Override simulator destination"
@@ -101,6 +105,7 @@ MODE="smart"
 DRY_RUN=false
 SPECIFIC_SCREENS=""
 EXTRACT_FROM=""
+USE_FIREBASE=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -125,6 +130,10 @@ while [[ $# -gt 0 ]]; do
             MODE="extract"
             EXTRACT_FROM="$2"
             shift 2
+            ;;
+        --firebase)
+            USE_FIREBASE=true
+            shift
             ;;
         --project)
             CONFIG_PROJECT="$2"
@@ -153,6 +162,42 @@ done
 # Validate configuration
 if ! validate_config; then
     exit 1
+fi
+
+# Firebase detection and emulator check
+detect_firebase "$PROJECT_DIR"
+
+if [ "$FIREBASE_DETECTED" = true ]; then
+    FIREBASE_SCREEN_COUNT=$(count_firebase_screens "$CONFIG_MANIFEST_PATH")
+
+    if [ "$FIREBASE_SCREEN_COUNT" -gt 0 ]; then
+        echo -e "${BLUE}Firebase:${NC} Detected ($FIREBASE_SCREEN_COUNT screens require auth)"
+
+        if check_firebase_emulators; then
+            echo -e "  ${GREEN}✓${NC} Emulators running"
+            USE_FIREBASE=true
+        else
+            echo -e "  ${YELLOW}⚠${NC} Emulators not running"
+            echo ""
+
+            if [ "$USE_FIREBASE" = true ]; then
+                echo -e "${RED}Error: --firebase flag set but emulators not running${NC}"
+                echo ""
+                echo "Start emulators with:"
+                echo -e "  ${GREEN}$(get_emulator_start_command)${NC}"
+                echo ""
+                echo "Then run darwin capture again."
+                exit 1
+            else
+                echo -e "${YELLOW}Note:${NC} Screens requiring authentication will be skipped."
+                echo "To capture them, start Firebase emulators:"
+                echo -e "  ${GREEN}$(get_emulator_start_command)${NC}"
+                echo ""
+                echo -e "Then run: ${GREEN}darwin capture --firebase${NC}"
+                echo ""
+            fi
+        fi
+    fi
 fi
 
 # Check for manifest
@@ -453,6 +498,12 @@ XCODE_CMD="$XCODE_CMD -resultBundlePath \"$CONFIG_RESULTS_PATH/screenshots_$TIME
 XCODE_CMD="$XCODE_CMD PROJECT_DIR=\"$PROJECT_DIR\""
 XCODE_CMD="$XCODE_CMD SCREENSHOT_OUTPUT_DIR=\"$OUTPUT_DIR\""
 XCODE_CMD="$XCODE_CMD GIT_COMMIT=\"$GIT_COMMIT\""
+
+# Add Firebase emulator flag if enabled
+if [ "$USE_FIREBASE" = true ]; then
+    XCODE_CMD="$XCODE_CMD USE_FIREBASE_EMULATOR=\"1\""
+    echo -e "${BLUE}Running with Firebase emulators enabled${NC}"
+fi
 
 # Run tests
 echo -e "${BLUE}Building and running screenshot tests...${NC}"

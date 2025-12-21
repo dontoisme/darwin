@@ -122,6 +122,13 @@ When adding new screens, update `Screenshots/manifest.json`:
       "test": "testScreenshot_02_Settings",
       "sources": ["Sources/Views/SettingsView.swift"],
       "flows_to": []
+    },
+    "10-profile-logged-in": {
+      "name": "Profile (Logged In)",
+      "test": "testScreenshot_10_ProfileLoggedIn",
+      "requires_firebase": true,
+      "sources": ["Sources/Views/ProfileView.swift"],
+      "flows_to": []
     }
   },
   "groups": {
@@ -140,3 +147,22 @@ When adding new screens, update `Screenshots/manifest.json`:
 ```
 
 **Groups are required for the map view.** Use distinct colors for each group (hex format).
+
+### Firebase-Dependent Screens
+
+For screens that require Firebase authentication (login state, user data, etc.), add `requires_firebase: true`:
+
+```json
+"12-profile-no-guild": {
+  "name": "Profile - No Guild",
+  "test": "testScreenshot_12_profile_no_guild",
+  "requires_firebase": true,
+  "sources": ["Sources/Views/ProfileView.swift"]
+}
+```
+
+Darwin will detect Firebase and check if emulators are running before capture. If emulators are not running, screens with `requires_firebase: true` will be skipped with a warning.
+
+To capture Firebase-dependent screens:
+1. Start Firebase emulators: `firebase emulators:start --only auth,firestore`
+2. Run: `darwin capture --firebase`

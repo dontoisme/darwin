@@ -2,6 +2,18 @@
 
 All notable changes to Darwin will be documented in this file.
 
+## [1.6.0] - 2025-12-21
+
+### Added
+- **Firebase emulator detection** — Automatically detects Firebase projects and checks if emulators are running
+- **`--firebase` flag** — Run `darwin capture --firebase` to capture screens that require authentication
+- **`requires_firebase` manifest field** — Mark screens that need Firebase auth to capture properly
+- **Firebase library** — New `lib/firebase.sh` with project detection and emulator checking utilities
+
+### Changed
+- **Capture behavior with Firebase** — Warns when Firebase screens detected but emulators not running
+- **AI rules updated** — Claude/Cursor templates document `requires_firebase` field for authenticated screens
+
 ## [1.5.5] - 2025-12-21
 
 ### Fixed
