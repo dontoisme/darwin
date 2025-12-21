@@ -3,6 +3,29 @@
 This project uses Darwin for visual regression tracking and app flow documentation.
 Follow these patterns for AI-generated code to work seamlessly with Darwin.
 
+## Setting Up Darwin (If Not Initialized)
+
+When a user asks to set up Darwin or initialize visual regression testing:
+
+```bash
+darwin init --ai-interactive
+```
+
+This outputs structured questions. Present them to the user using AskUserQuestion:
+- Scheme selection (from Xcode project)
+- Simulator selection (from available devices)
+- Automation mode (Autopilot/Guided/Manual)
+
+Then run with their selections:
+```bash
+darwin init --ai --scheme <scheme> --destination 'platform=iOS Simulator,name=<device>' --mode <mode>
+```
+
+After init completes, follow the "AI ASSISTANT" handoff instructions in the output to:
+1. Read and update Screenshots/manifest.json with flows_to connections
+2. Add navigation logic to the generated test stubs
+3. Run `darwin capture --baseline`
+
 ## SwiftUI Views
 
 ### Accessibility Identifiers (Required)

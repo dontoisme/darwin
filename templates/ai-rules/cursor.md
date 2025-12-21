@@ -2,6 +2,25 @@
 
 This iOS project uses Darwin for visual regression tracking.
 
+## Setting Up Darwin
+
+When asked to set up Darwin, run:
+```bash
+darwin init --ai-interactive
+```
+
+Parse the JSON output and ask the user to select:
+- Scheme (from Xcode project)
+- Simulator device
+- Automation mode
+
+Then run with selections:
+```bash
+darwin init --ai --scheme <scheme> --destination 'platform=iOS Simulator,name=<device>' --mode <mode>
+```
+
+Follow the "AI ASSISTANT" handoff to complete setup.
+
 ## Rules for SwiftUI Code
 
 1. ALWAYS add .accessibilityIdentifier() to interactive elements (buttons, links, toggles, text fields)
