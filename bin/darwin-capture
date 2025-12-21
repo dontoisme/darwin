@@ -302,28 +302,25 @@ case "$MODE" in
         echo "Output: $OUTPUT_DIR"
         echo ""
 
-        # Parse xcresult JSON to find all PNG attachments with their names and IDs
-        EXTRACTED_COUNT=0
-        xcrun xcresulttool get --path "$EXTRACT_FROM" --format json 2>/dev/null | \
-            jq -r '
-                .. |
-                select(type == "object" and .attachments != null) |
-                .attachments[] |
-                select(.uniformTypeIdentifier == "public.png" and .payloadRef != null) |
-                "\(.name)|\(.payloadRef.id)"
-            ' 2>/dev/null | \
-            while IFS='|' read -r name ref_id; do
-                if [ -n "$name" ] && [ -n "$ref_id" ]; then
-                    # Only extract Darwin screenshots (have numeric prefix like "01-")
-                    if [[ "$name" =~ ^[0-9]{2}- ]]; then
-                        xcrun xcresulttool get --path "$EXTRACT_FROM" --id "$ref_id" --format raw > "$OUTPUT_DIR/$name.png" 2>/dev/null
-                        if [ -f "$OUTPUT_DIR/$name.png" ] && [ -s "$OUTPUT_DIR/$name.png" ]; then
-                            echo -e "  ${GREEN}→${NC} Extracted: $name.png"
-                            EXTRACTED_COUNT=$((EXTRACTED_COUNT + 1))
+        # Use xcresulttool export attachments (new API)
+        TEMP_EXTRACT=$(mktemp -d)
+        xcrun xcresulttool export attachments --path "$EXTRACT_FROM" --output-path "$TEMP_EXTRACT" 2>/dev/null
+
+        # Parse manifest and rename files
+        if [ -f "$TEMP_EXTRACT/manifest.json" ]; then
+            jq -r '.[] | .attachments[]? | "\(.exportedFileName)|\(.suggestedHumanReadableName)"' "$TEMP_EXTRACT/manifest.json" 2>/dev/null | \
+                while IFS='|' read -r uuid_name suggested_name; do
+                    if [ -n "$uuid_name" ] && [ -n "$suggested_name" ]; then
+                        # Extract screen ID from suggested name (e.g., "01-library-empty_0_UUID.png" -> "01-library-empty")
+                        screen_id=$(echo "$suggested_name" | sed 's/_0_.*$//')
+                        if [[ "$screen_id" =~ ^[0-9]{2}- ]] && [ -f "$TEMP_EXTRACT/$uuid_name" ]; then
+                            cp "$TEMP_EXTRACT/$uuid_name" "$OUTPUT_DIR/$screen_id.png"
+                            echo -e "  ${GREEN}→${NC} Extracted: $screen_id.png"
                         fi
                     fi
-                fi
-            done
+                done
+        fi
+        rm -rf "$TEMP_EXTRACT"
 
         # Count and report
         SCREENSHOT_COUNT=$(ls -1 "$OUTPUT_DIR"/*.png 2>/dev/null | wc -l | tr -d ' ')
@@ -488,27 +485,25 @@ if [ "$INITIAL_COUNT" -eq 0 ]; then
     if [ -d "$XCRESULT_PATH" ]; then
         echo -e "${YELLOW}No screenshots in output dir, extracting from xcresult...${NC}"
 
-        # Parse xcresult JSON to find all PNG attachments with their names and IDs
-        xcrun xcresulttool get --path "$XCRESULT_PATH" --format json 2>/dev/null | \
-            jq -r '
-                .. |
-                select(type == "object" and .attachments != null) |
-                .attachments[] |
-                select(.uniformTypeIdentifier == "public.png" and .payloadRef != null) |
-                "\(.name)|\(.payloadRef.id)"
-            ' 2>/dev/null | \
-            while IFS='|' read -r name ref_id; do
-                if [ -n "$name" ] && [ -n "$ref_id" ]; then
-                    # Only extract Darwin screenshots (have numeric prefix like "01-")
-                    if [[ "$name" =~ ^[0-9]{2}- ]]; then
-                        # Extract the attachment by ID
-                        xcrun xcresulttool get --path "$XCRESULT_PATH" --id "$ref_id" --format raw > "$OUTPUT_DIR/$name.png" 2>/dev/null
-                        if [ -f "$OUTPUT_DIR/$name.png" ] && [ -s "$OUTPUT_DIR/$name.png" ]; then
-                            echo -e "  ${GREEN}→${NC} Extracted: $name.png"
+        # Use xcresulttool export attachments (new API)
+        TEMP_EXTRACT=$(mktemp -d)
+        xcrun xcresulttool export attachments --path "$XCRESULT_PATH" --output-path "$TEMP_EXTRACT" 2>/dev/null
+
+        # Parse manifest and rename files
+        if [ -f "$TEMP_EXTRACT/manifest.json" ]; then
+            jq -r '.[] | .attachments[]? | "\(.exportedFileName)|\(.suggestedHumanReadableName)"' "$TEMP_EXTRACT/manifest.json" 2>/dev/null | \
+                while IFS='|' read -r uuid_name suggested_name; do
+                    if [ -n "$uuid_name" ] && [ -n "$suggested_name" ]; then
+                        # Extract screen ID from suggested name (e.g., "01-library-empty_0_UUID.png" -> "01-library-empty")
+                        screen_id=$(echo "$suggested_name" | sed 's/_0_.*$//')
+                        if [[ "$screen_id" =~ ^[0-9]{2}- ]] && [ -f "$TEMP_EXTRACT/$uuid_name" ]; then
+                            cp "$TEMP_EXTRACT/$uuid_name" "$OUTPUT_DIR/$screen_id.png"
+                            echo -e "  ${GREEN}→${NC} Extracted: $screen_id.png"
                         fi
                     fi
-                fi
-            done
+                done
+        fi
+        rm -rf "$TEMP_EXTRACT"
     fi
 fi
 

@@ -2,6 +2,11 @@
 
 All notable changes to Darwin will be documented in this file.
 
+## [1.5.3] - 2025-12-20
+
+### Fixed
+- **xcresulttool API update** — Updated extraction to use `xcresulttool export attachments` (the `get --format json` syntax is deprecated)
+
 ## [1.5.2] - 2025-12-20
 
 ### Fixed
