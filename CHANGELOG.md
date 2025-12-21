@@ -2,6 +2,22 @@
 
 All notable changes to Darwin will be documented in this file.
 
+## [1.5.0] - 2025-12-20
+
+### Added
+- **AI-Native Handoff** — `darwin init` outputs structured instructions for Claude Code/Cursor to complete setup
+- **Auto-infer flows_to** — `darwin detect --add` now analyzes NavigationLink patterns to populate flows_to connections
+- **AI prompt tip** — Shows "ask your AI assistant" tip for complex navigation patterns
+
+### Improved
+- **Scheme prompt** — Added hint to press enter to accept the default scheme
+- **UI Test target guidance** — Explains what a UI Test target is with link to create one
+- **Simulator selection** — Replaced text input with numbered list of available simulators
+- **Clearer language** — Changed "Add to manifest?" to "Track these screens with Darwin?"
+
+### Fixed
+- Count calculation bug in darwin detect with newline characters
+
 ## [1.4.0] - 2025-12-20
 
 ### Added
