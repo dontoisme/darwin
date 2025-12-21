@@ -2,6 +2,11 @@
 
 All notable changes to Darwin will be documented in this file.
 
+## [1.5.4] - 2025-12-20
+
+### Fixed
+- **Viewer map modal null captureId** — Fixed modal images showing `captures/null/screen.png` when clicking screens in map view
+
 ## [1.5.3] - 2025-12-20
 
 ### Fixed

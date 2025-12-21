@@ -2075,8 +2075,8 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         function renderMapScreens() {
             const canvas = document.getElementById('mapCanvas');
             const captures = INDEX.captures || [];
-            const currentCapture = captures[mapTimelineIdx];
-            const captureId = currentCapture ? currentCapture.id : selectedCapture;
+            const currentCapture = captures[mapTimelineIdx] || captures[captures.length - 1];
+            const captureId = currentCapture ? currentCapture.id : (selectedCapture || 'baseline');
 
             for (const [screenId, screen] of Object.entries(MANIFEST.screens)) {
                 const pos = screenPositions[screenId];
@@ -2567,6 +2567,11 @@ cat > "$OUTPUT_FILE" << 'HTMLDOC'
         }
 
         function openModal(screenId, captureId = selectedCapture) {
+            // Fallback if captureId is null/undefined
+            if (!captureId) {
+                const captures = INDEX.captures || [];
+                captureId = captures.length > 0 ? captures[captures.length - 1].id : 'baseline';
+            }
             const screen = MANIFEST.screens[screenId];
             if (!screen) return;
 
