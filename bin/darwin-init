@@ -167,6 +167,7 @@ fi
 
 if [ "$SKIP_PROMPTS" != true ]; then
     echo ""
+    echo -e "${CYAN}Press enter to accept the default, or type a different scheme name.${NC}"
     read -p "Scheme [$SCHEME]: " INPUT_SCHEME
     if [ -n "$INPUT_SCHEME" ]; then
         SCHEME="$INPUT_SCHEME"
@@ -181,14 +182,28 @@ else
     TEST_TARGET="${SCHEME}UITests"
 fi
 
+# Check if test target exists
+TEST_TARGET_EXISTS=false
+if [ -d "$TEST_TARGET" ] || find . -maxdepth 2 -type d -name "$TEST_TARGET" 2>/dev/null | grep -q .; then
+    TEST_TARGET_EXISTS=true
+fi
+
 if [ "$SKIP_PROMPTS" != true ]; then
+    echo ""
+    if [ "$TEST_TARGET_EXISTS" = false ]; then
+        echo -e "${YELLOW}Note: UI Test target '$TEST_TARGET' not found in project.${NC}"
+        echo -e "${CYAN}You may need to create one in Xcode: File > New > Target > UI Testing Bundle${NC}"
+        echo -e "${CYAN}See: https://github.com/dontoisme/darwin#creating-a-ui-test-target${NC}"
+        echo ""
+    fi
+    echo -e "${CYAN}Press enter to accept the default.${NC}"
     read -p "UI Test Target [$TEST_TARGET]: " INPUT_TEST_TARGET
     if [ -n "$INPUT_TEST_TARGET" ]; then
         TEST_TARGET="$INPUT_TEST_TARGET"
     fi
 fi
 
-# Determine destination
+# Determine destination - show available simulators
 DESTINATION=""
 if [ -n "$ARG_DESTINATION" ]; then
     DESTINATION="$ARG_DESTINATION"
@@ -198,11 +213,22 @@ fi
 
 if [ "$SKIP_PROMPTS" != true ]; then
     echo ""
-    echo "Simulator destinations (examples):"
-    echo "  platform=iOS Simulator,name=iPhone 16 Pro"
-    echo "  platform=iOS Simulator,name=iPhone 15,OS=17.0"
+    echo "Available iPhone simulators:"
+
+    # Get list of available iPhone simulators
+    SIMULATORS=$(xcrun simctl list devices available 2>/dev/null | grep -E "iPhone|iPad" | grep -v "unavailable" | head -10 | sed 's/^ *//' | nl -w2 -s') ')
+    echo "$SIMULATORS"
+    echo ""
+    echo -e "${CYAN}Enter a number to select, or press enter for the default.${NC}"
     read -p "Destination [$DESTINATION]: " INPUT_DEST
-    if [ -n "$INPUT_DEST" ]; then
+
+    # Check if input is a number (selection from list)
+    if [[ "$INPUT_DEST" =~ ^[0-9]+$ ]]; then
+        SELECTED_SIM=$(xcrun simctl list devices available 2>/dev/null | grep -E "iPhone|iPad" | grep -v "unavailable" | head -10 | sed -n "${INPUT_DEST}p" | sed 's/^ *//' | sed 's/ (.*//')
+        if [ -n "$SELECTED_SIM" ]; then
+            DESTINATION="platform=iOS Simulator,name=$SELECTED_SIM"
+        fi
+    elif [ -n "$INPUT_DEST" ]; then
         DESTINATION="$INPUT_DEST"
     fi
 fi
@@ -253,7 +279,7 @@ else
             read -p "Auto-detect new views after commit? [Y/n]: " RESP
             case "$RESP" in [Nn]*) DETECT_NEW_VIEWS=false ;; *) DETECT_NEW_VIEWS=true ;; esac
 
-            read -p "Auto-add detected views to manifest? [Y/n]: " RESP
+            read -p "Auto-track newly detected screens? [Y/n]: " RESP
             case "$RESP" in [Nn]*) ADD_VIEWS_TO_MANIFEST=false ;; *) ADD_VIEWS_TO_MANIFEST=true ;; esac
 
             read -p "Auto-capture screenshots after commit? [Y/n]: " RESP
@@ -385,7 +411,7 @@ if [ "$SKIP_PROMPTS" != true ]; then
             [ "$SCREEN_COUNT" -gt 5 ] && echo "    ... and $((SCREEN_COUNT - 5)) more"
             echo ""
 
-            read -p "Add these to manifest? [Y/n]: " ADD_SCREENS_RESP
+            read -p "Track these screens with Darwin? [Y/n]: " ADD_SCREENS_RESP
             if [[ ! $ADD_SCREENS_RESP =~ ^[Nn]$ ]]; then
                 "$SCRIPT_DIR/darwin-detect" --add --yes 2>/dev/null
                 SCREENS_ADDED=$SCREEN_COUNT
@@ -561,19 +587,19 @@ else
             echo "   • Auto-open the visual timeline after capture"
             echo ""
             echo -e "${YELLOW}Next steps:${NC}"
-            echo "  1. Edit Screenshots/manifest.json to add your screens"
+            echo "  1. Run: darwin detect --add   # Find and track your screens"
             echo "  2. Run: darwin capture --baseline"
             ;;
         manual)
             echo -e "${BLUE}🛠️  Manual mode enabled.${NC} Run commands when you need them:"
             echo ""
-            echo "  darwin detect      # Find new SwiftUI views"
+            echo "  darwin detect      # Find screens in your code"
             echo "  darwin capture     # Take screenshots"
             echo "  darwin viewer      # See visual timeline"
             echo "  darwin diff        # Compare captures"
             echo ""
             echo -e "${YELLOW}Next steps:${NC}"
-            echo "  1. Edit Screenshots/manifest.json to add your screens"
+            echo "  1. Run: darwin detect --add   # Find and track your screens"
             echo "  2. Add accessibility identifiers to your views"
             echo "  3. Create $TEST_TARGET/ScreenshotTests.swift"
             echo "  4. Run: darwin capture --baseline"
@@ -581,12 +607,12 @@ else
         custom)
             echo -e "${CYAN}⚙️  Custom mode configured:${NC}"
             echo "   • Detect new views:     $DETECT_NEW_VIEWS"
-            echo "   • Auto-add to manifest: $ADD_VIEWS_TO_MANIFEST"
+            echo "   • Auto-track new screens: $ADD_VIEWS_TO_MANIFEST"
             echo "   • Capture after commit: $CAPTURE_AFTER_COMMIT"
             echo "   • Open viewer:          $OPEN_VIEWER_AFTER_CAPTURE"
             echo ""
             echo -e "${YELLOW}Next steps:${NC}"
-            echo "  1. Edit Screenshots/manifest.json to add your screens"
+            echo "  1. Run: darwin detect --add   # Find and track your screens"
             echo "  2. Run: darwin capture --baseline"
             ;;
     esac
