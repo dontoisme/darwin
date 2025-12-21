@@ -351,6 +351,53 @@ view_to_screen_id() {
     echo "${next_num}-${id}"
 }
 
+# Infer navigation flows from a source file
+# Returns: list of destination view names (one per line)
+infer_flows_from_source() {
+    local file_path="$1"
+
+    if [ ! -f "$file_path" ]; then
+        return
+    fi
+
+    local content=$(cat "$file_path")
+
+    # Pattern 1: NavigationLink { DestinationView() }
+    # Pattern 2: NavigationLink(destination: DestinationView())
+    # Pattern 3: NavigationLink("Label") { DestinationView() }
+    echo "$content" | grep -oE 'NavigationLink[^{]*\{[^}]*[A-Z][a-zA-Z0-9_]*View\s*\(' | \
+        grep -oE '[A-Z][a-zA-Z0-9_]*View' | sort -u
+
+    # Pattern 4: .navigationDestination(for: Type.self) { _ in DestinationView() }
+    echo "$content" | grep -oE 'navigationDestination[^{]*\{[^}]*[A-Z][a-zA-Z0-9_]*View\s*\(' | \
+        grep -oE '[A-Z][a-zA-Z0-9_]*View' | sort -u
+
+    # Pattern 5: .sheet(isPresented: ...) { DestinationView() }
+    echo "$content" | grep -oE '\.sheet\s*\([^)]*\)\s*\{[^}]*[A-Z][a-zA-Z0-9_]*View\s*\(' | \
+        grep -oE '[A-Z][a-zA-Z0-9_]*View' | sort -u
+
+    # Pattern 6: .fullScreenCover { DestinationView() }
+    echo "$content" | grep -oE '\.fullScreenCover[^{]*\{[^}]*[A-Z][a-zA-Z0-9_]*View\s*\(' | \
+        grep -oE '[A-Z][a-zA-Z0-9_]*View' | sort -u
+}
+
+# Build a map of view names to screen IDs from manifest
+build_view_to_screen_map() {
+    if [ ! -f "$MANIFEST_FILE" ]; then
+        return
+    fi
+
+    # For each screen, extract the view name from sources
+    jq -r '.screens | to_entries[] | "\(.key)|\(.value.sources[]?)"' "$MANIFEST_FILE" 2>/dev/null | \
+    while IFS='|' read -r screen_id source_path; do
+        if [ -n "$source_path" ]; then
+            # Extract view name from source path (e.g., SettingsView.swift -> SettingsView)
+            local view_name=$(basename "$source_path" .swift)
+            echo "$view_name|$screen_id"
+        fi
+    done
+}
+
 # Generate manifest entry JSON
 generate_manifest_entry() {
     local screen_id="$1"
@@ -412,6 +459,68 @@ add_to_manifest() {
     echo "$count"
 }
 
+# Update flows_to for all screens in manifest based on NavigationLink analysis
+update_manifest_flows() {
+    if [ ! -f "$MANIFEST_FILE" ]; then
+        return 0
+    fi
+
+    local temp_file=$(mktemp)
+    local updated=0
+
+    # Build view name to screen ID mapping
+    local view_map=""
+    while IFS='|' read -r view_name screen_id; do
+        view_map="${view_map}${view_name}|${screen_id}\n"
+    done < <(build_view_to_screen_map)
+
+    # For each screen, infer flows from its sources
+    local screen_ids=$(jq -r '.screens | keys[]' "$MANIFEST_FILE" 2>/dev/null)
+
+    for screen_id in $screen_ids; do
+        local sources=$(jq -r ".screens[\"$screen_id\"].sources[]?" "$MANIFEST_FILE" 2>/dev/null)
+        local flows_to=""
+
+        for source in $sources; do
+            # Find full path to source
+            local file_path=""
+            if [ -f "$PROJECT_DIR/$source" ]; then
+                file_path="$PROJECT_DIR/$source"
+            elif [ -f "$source" ]; then
+                file_path="$source"
+            fi
+
+            if [ -n "$file_path" ]; then
+                # Get destination views from this source
+                local dest_views=$(infer_flows_from_source "$file_path")
+
+                for dest_view in $dest_views; do
+                    # Look up the screen ID for this view
+                    local dest_screen_id=$(echo -e "$view_map" | grep "^$dest_view|" | cut -d'|' -f2 | head -1)
+                    if [ -n "$dest_screen_id" ] && [ "$dest_screen_id" != "$screen_id" ]; then
+                        flows_to="${flows_to}${dest_screen_id}\n"
+                    fi
+                done
+            fi
+        done
+
+        # Update flows_to if we found any
+        if [ -n "$flows_to" ]; then
+            # Deduplicate and format as JSON array
+            local flows_array=$(echo -e "$flows_to" | sort -u | grep -v '^$' | jq -R . | jq -s .)
+
+            # Merge with existing flows_to
+            jq --arg id "$screen_id" --argjson flows "$flows_array" \
+               '.screens[$id].flows_to = (.screens[$id].flows_to + $flows | unique)' \
+               "$MANIFEST_FILE" > "$temp_file"
+            mv "$temp_file" "$MANIFEST_FILE"
+            ((updated++))
+        fi
+    done
+
+    echo "$updated"
+}
+
 # Main function
 main() {
     # Parse arguments
@@ -470,6 +579,7 @@ main() {
     fi
 
     local count=$(echo "$new_views" | grep -c '|' 2>/dev/null || echo 0)
+    count=$(echo "$count" | tr -d '[:space:]')
 
     # Check mode - just exit with status
     if [ "$CHECK_MODE" = true ]; then
@@ -546,6 +656,15 @@ main() {
         echo -e "${GREEN}✓ Added $added screen(s) to manifest${NC}"
 
         echo ""
+        echo -e "${CYAN}Inferring navigation flows...${NC}"
+        local flows_updated=$(update_manifest_flows)
+        if [ "$flows_updated" -gt 0 ]; then
+            echo -e "${GREEN}✓ Updated $flows_updated screen(s) with navigation flows${NC}"
+        else
+            echo -e "${DIM}  No navigation flows detected automatically${NC}"
+        fi
+
+        echo ""
         echo -e "${CYAN}Generating test stubs...${NC}"
         "$SCRIPT_DIR/darwin-manifest" sync --generate
 
@@ -553,9 +672,10 @@ main() {
         echo -e "${GREEN}🧬 Done!${NC}"
         echo ""
         echo -e "Next steps:"
-        echo "  1. Copy the generated test stubs to your ScreenshotTests.swift"
-        echo "  2. Implement navigation logic for each test"
-        echo "  3. Run: darwin capture"
+        echo "  1. Run: darwin capture --baseline"
+        echo ""
+        echo -e "${DIM}Tip: For complex navigation, ask your AI assistant:${NC}"
+        echo -e "${DIM}  \"Read my SwiftUI code and update flows_to in Screenshots/manifest.json\"${NC}"
     else
         echo -e "${CYAN}To add these to manifest:${NC}"
         echo "  darwin detect --add"
