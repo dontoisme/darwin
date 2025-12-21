@@ -1,731 +1,1306 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Darwin — Visual Regression Testing for AI-Assisted iOS Development</title>
-    <meta name="description" content="Visual regression testing for iOS in the vibe coding era. See exactly what changed—whether you wrote it or your AI did. Built for solo builders and AI-assisted development.">
-    <meta name="keywords" content="iOS, visual regression testing, screenshot testing, XCUITest, Swift, Xcode, git, timelapse">
-    <meta name="author" content="Don Hogan">
-
-    <!-- Open Graph / Social -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="Darwin — Visual Regression Testing for AI-Assisted iOS Development">
-    <meta property="og:description" content="Visual regression testing for iOS in the vibe coding era. See exactly what changed—whether you wrote it or your AI did. Built for solo builders and AI-assisted development.">
-    <meta property="og:url" content="https://dontoisme.github.io/darwin">
-
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Darwin — Visual Regression Testing for AI-Assisted iOS Development">
-    <meta name="twitter:description" content="Visual regression testing for iOS in the vibe coding era. See exactly what changed—whether you wrote it or your AI did.">
-
-    <style>
-        :root {
-            --bg: #0d1117;
-            --bg-secondary: #161b22;
-            --text: #e6edf3;
-            --text-muted: #8b949e;
-            --accent: #58a6ff;
-            --accent-green: #3fb950;
-            --accent-purple: #a371f7;
-            --accent-yellow: #d29922;
-            --border: #30363d;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 960px;
-            margin: 0 auto;
-            padding: 0 24px;
-        }
-
-        /* Hero */
-        .hero {
-            padding: 80px 0 60px;
-            text-align: center;
-        }
-
-        .logo {
-            font-size: 64px;
-            margin-bottom: 16px;
-        }
-
-        h1 {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-purple) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .tagline {
-            font-size: 24px;
-            color: var(--text-muted);
-            margin-bottom: 32px;
-        }
-
-        .hero-description {
-            color: var(--text-muted);
-            margin-bottom: 32px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .cta-buttons {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.2s;
-        }
-
-        .btn-primary {
-            background: var(--accent);
-            color: var(--bg);
-        }
-
-        .btn-primary:hover {
-            background: #79b8ff;
-        }
-
-        .btn-secondary {
-            background: var(--bg-secondary);
-            color: var(--text);
-            border: 1px solid var(--border);
-        }
-
-        .btn-secondary:hover {
-            border-color: var(--text-muted);
-        }
-
-        .btn-demo {
-            background: linear-gradient(135deg, var(--accent-purple), var(--accent));
-            color: white;
-        }
-
-        .btn-demo:hover {
-            opacity: 0.9;
-        }
-
-        /* Install */
-        .install {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 24px;
-            margin: 40px 0;
-        }
-
-        .install-label {
-            font-size: 14px;
-            color: var(--text-muted);
-            margin-bottom: 12px;
-        }
-
-        .install-code {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .install-code code {
-            flex: 1;
-            background: var(--bg);
-            padding: 16px 20px;
-            border-radius: 8px;
-            font-family: 'SF Mono', Menlo, monospace;
-            font-size: 15px;
-            color: var(--accent-green);
-            overflow-x: auto;
-        }
-
-        .copy-btn {
-            background: var(--border);
-            border: none;
-            padding: 12px 16px;
-            border-radius: 8px;
-            color: var(--text);
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .copy-btn:hover {
-            background: var(--text-muted);
-        }
-
-        /* Demo Section */
-        .demo {
-            padding: 60px 0;
-            border-top: 1px solid var(--border);
-            text-align: center;
-        }
-
-        .demo h2 {
-            font-size: 32px;
-            margin-bottom: 16px;
-        }
-
-        .demo p {
-            color: var(--text-muted);
-            margin-bottom: 32px;
-            max-width: 500px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .demo-preview {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
-            margin-top: 32px;
-        }
-
-        .demo-header {
-            background: var(--border);
-            padding: 12px 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .demo-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-        }
-
-        .demo-dot.red { background: #ff5f57; }
-        .demo-dot.yellow { background: #febc2e; }
-        .demo-dot.green { background: #28c840; }
-
-        .demo-content {
-            padding: 40px;
-            text-align: center;
-        }
-
-        .demo-modes {
-            display: flex;
-            justify-content: center;
-            gap: 24px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-        }
-
-        .demo-mode {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .demo-mode-icon {
-            width: 48px;
-            height: 48px;
-            background: var(--bg);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-
-        .demo-mode-label {
-            font-size: 13px;
-            color: var(--text-muted);
-        }
-
-        /* Features */
-        .features {
-            padding: 60px 0;
-        }
-
-        .features h2 {
-            font-size: 32px;
-            text-align: center;
-            margin-bottom: 48px;
-        }
-
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-        }
-
-        .feature {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 24px;
-        }
-
-        .feature-icon {
-            font-size: 32px;
-            margin-bottom: 12px;
-        }
-
-        .feature h3 {
-            font-size: 18px;
-            margin-bottom: 8px;
-        }
-
-        .feature p {
-            color: var(--text-muted);
-            font-size: 14px;
-        }
-
-        .feature-badge {
-            display: inline-block;
-            font-size: 11px;
-            padding: 2px 8px;
-            background: var(--border);
-            color: var(--text-muted);
-            border-radius: 12px;
-            margin-left: 8px;
-            font-weight: 500;
-            vertical-align: middle;
-        }
-
-        /* How it works */
-        .how-it-works {
-            padding: 60px 0;
-            border-top: 1px solid var(--border);
-        }
-
-        .how-it-works h2 {
-            font-size: 32px;
-            text-align: center;
-            margin-bottom: 48px;
-        }
-
-        .steps {
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-
-        .step {
-            display: flex;
-            gap: 20px;
-            align-items: flex-start;
-        }
-
-        .step-number {
-            flex-shrink: 0;
-            width: 36px;
-            height: 36px;
-            background: var(--accent);
-            color: var(--bg);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-        }
-
-        .step-content h3 {
-            font-size: 18px;
-            margin-bottom: 4px;
-        }
-
-        .step-content p {
-            color: var(--text-muted);
-            font-size: 14px;
-        }
-
-        /* Code example */
-        .example {
-            padding: 60px 0;
-            border-top: 1px solid var(--border);
-        }
-
-        .example h2 {
-            font-size: 32px;
-            text-align: center;
-            margin-bottom: 48px;
-        }
-
-        .code-block {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        .code-header {
-            background: var(--border);
-            padding: 12px 20px;
-            font-size: 14px;
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .code-block pre {
-            padding: 20px;
-            overflow-x: auto;
-            font-family: 'SF Mono', Menlo, monospace;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-
-        .code-block .comment { color: var(--text-muted); display: block; }
-        .code-block .command { color: var(--accent-green); }
-        .code-block .flag { color: var(--accent-purple); }
-
-        /* Commands */
-        .commands {
-            padding: 60px 0;
-            border-top: 1px solid var(--border);
-        }
-
-        .commands h2 {
-            font-size: 32px;
-            text-align: center;
-            margin-bottom: 48px;
-        }
-
-        .command-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-        }
-
-        .command {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px 20px;
-        }
-
-        .command code {
-            color: var(--accent-green);
-            font-family: 'SF Mono', Menlo, monospace;
-            font-size: 14px;
-        }
-
-        .command p {
-            color: var(--text-muted);
-            font-size: 13px;
-            margin-top: 6px;
-        }
-
-        /* Use cases */
-        .use-cases {
-            padding: 60px 0;
-            border-top: 1px solid var(--border);
-        }
-
-        .use-cases h2 {
-            font-size: 32px;
-            text-align: center;
-            margin-bottom: 48px;
-        }
-
-        .use-case-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-        }
-
-        .use-case {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px 20px;
-            font-size: 14px;
-        }
-
-        .use-case strong {
-            color: var(--accent);
-        }
-
-        /* Footer */
-        footer {
-            border-top: 1px solid var(--border);
-            padding: 40px 0;
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 14px;
-        }
-
-        footer a {
-            color: var(--accent);
-            text-decoration: none;
-        }
-
-        footer a:hover {
-            text-decoration: underline;
-        }
-
-        /* Responsive */
-        @media (max-width: 600px) {
-            h1 { font-size: 36px; }
-            .tagline { font-size: 18px; }
-            .hero { padding: 60px 0 40px; }
-            .logo { font-size: 48px; }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Darwin — Visual Regression Testing for AI-Assisted iOS Development</title>
+  <meta name="description" content="Visual regression testing for iOS in the vibe coding era. See exactly what changed—whether you wrote it or your AI did.">
+  <meta name="keywords" content="iOS, visual regression testing, screenshot testing, XCUITest, Swift, Xcode, git, timelapse">
+  <meta name="author" content="Don Hogan">
+
+  <!-- Open Graph / Social -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Darwin — Visual Regression Testing for AI-Assisted iOS Development">
+  <meta property="og:description" content="Visual regression testing for iOS in the vibe coding era. See exactly what changed—whether you wrote it or your AI did.">
+  <meta property="og:url" content="https://dontoisme.github.io/darwin">
+
+  <!-- Fonts: Distinctive choices -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      /* Bioluminescent paleontology palette */
+      --bg-deep: #0a0a0f;
+      --bg-surface: #111118;
+      --bg-elevated: #1a1a24;
+      --glow-primary: #00ff88;
+      --glow-secondary: #00d4ff;
+      --glow-tertiary: #a855f7;
+      --glow-accent: #ff6b35;
+      --text-primary: #f0f0f5;
+      --text-secondary: #8888a0;
+      --text-muted: #55556a;
+      --border-subtle: rgba(255,255,255,0.06);
+      --border-glow: rgba(0,255,136,0.25);
+
+      /* Typography */
+      --font-display: 'Syne', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-body: 'DM Sans', sans-serif;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Conway's Game of Life canvas */
+    #life-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.07;
+    }
+
+    /* Atmospheric background layers */
+    .bg-atmosphere {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 100% 60% at 15% 30%, rgba(0,255,136,0.06) 0%, transparent 50%),
+        radial-gradient(ellipse 80% 50% at 85% 70%, rgba(0,212,255,0.04) 0%, transparent 50%),
+        radial-gradient(ellipse 60% 40% at 50% 100%, rgba(168,85,247,0.03) 0%, transparent 40%);
+    }
+
+    /* Fossil strata lines - geological layers */
+    .strata {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.15;
+    }
+
+    .strata-line {
+      position: absolute;
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        var(--glow-primary) 20%,
+        var(--glow-secondary) 50%,
+        var(--glow-primary) 80%,
+        transparent 100%);
+      opacity: 0.3;
+    }
+
+    .strata-line:nth-child(1) { top: 20%; animation: strata-drift 25s ease-in-out infinite; }
+    .strata-line:nth-child(2) { top: 40%; animation: strata-drift 30s ease-in-out infinite reverse; opacity: 0.2; }
+    .strata-line:nth-child(3) { top: 60%; animation: strata-drift 35s ease-in-out infinite; opacity: 0.15; }
+    .strata-line:nth-child(4) { top: 80%; animation: strata-drift 28s ease-in-out infinite reverse; opacity: 0.25; }
+
+    @keyframes strata-drift {
+      0%, 100% { transform: scaleX(1) translateY(0); opacity: 0.2; }
+      50% { transform: scaleX(1.02) translateY(10px); opacity: 0.35; }
+    }
+
+    /* Main container */
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 20px 24px;
+      background: linear-gradient(to bottom, rgba(10,10,15,0.95) 0%, rgba(10,10,15,0.8) 50%, transparent 100%);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    nav .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--glow-primary) 0%, var(--glow-secondary) 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(0,255,136,0.3);
+    }
+
+    .logo-icon svg {
+      width: 22px;
+      height: 22px;
+      fill: var(--bg-deep);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-links a:hover {
+      color: var(--glow-primary);
+    }
+
+    .nav-links svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    /* Hero Section */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 140px 0 100px;
+    }
+
+    .hero .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .hero-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.25em;
+      color: var(--glow-primary);
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .hero-eyebrow::before,
+    .hero-eyebrow::after {
+      content: '';
+      width: 48px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--glow-primary));
+    }
+
+    .hero-eyebrow::after {
+      background: linear-gradient(90deg, var(--glow-primary), transparent);
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(3.5rem, 12vw, 7rem);
+      font-weight: 800;
+      line-height: 0.9;
+      letter-spacing: -0.04em;
+      margin-bottom: 28px;
+    }
+
+    .hero-title .highlight {
+      background: linear-gradient(135deg, var(--glow-primary) 0%, var(--glow-secondary) 50%, var(--glow-tertiary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: 1.35rem;
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin: 0 auto 56px;
+      line-height: 1.7;
+    }
+
+    /* CTA Prompt Box - THE PRIMARY ELEMENT */
+    .prompt-box {
+      background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-elevated) 100%);
+      border: 1px solid var(--border-glow);
+      border-radius: 20px;
+      padding: 36px;
+      max-width: 680px;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      animation: glow-pulse 4s ease-in-out infinite;
+      text-align: left;
+    }
+
+    @keyframes glow-pulse {
+      0%, 100% {
+        box-shadow:
+          0 0 40px rgba(0,255,136,0.08),
+          0 0 80px rgba(0,255,136,0.04),
+          inset 0 0 40px rgba(0,255,136,0.02);
+      }
+      50% {
+        box-shadow:
+          0 0 60px rgba(0,255,136,0.12),
+          0 0 100px rgba(0,255,136,0.06),
+          inset 0 0 60px rgba(0,255,136,0.04);
+      }
+    }
+
+    .prompt-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--glow-primary), var(--glow-secondary), transparent);
+    }
+
+    .prompt-box::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 30% 30%, rgba(0,255,136,0.03) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    .prompt-label {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--glow-primary);
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .prompt-label svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .prompt-code {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      line-height: 1.9;
+      color: var(--text-primary);
+      background: var(--bg-deep);
+      padding: 24px;
+      border-radius: 12px;
+      margin-bottom: 18px;
+      position: relative;
+      border: 1px solid var(--border-subtle);
+      z-index: 1;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .copy-btn svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .copy-btn:hover {
+      background: var(--glow-primary);
+      color: var(--bg-deep);
+      border-color: var(--glow-primary);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,255,136,0.3);
+    }
+
+    .prompt-hint {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      position: relative;
+      z-index: 1;
+    }
+
+    .prompt-hint strong {
+      color: var(--text-secondary);
+    }
+
+    /* Buttons */
+    .btn-group {
+      display: flex;
+      gap: 16px;
+      margin-top: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 32px;
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      border-radius: 12px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--glow-primary) 0%, #00cc70 100%);
+      color: var(--bg-deep);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 40px rgba(0,255,136,0.35);
+    }
+
+    .btn-secondary {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--glow-primary);
+      background: var(--bg-elevated);
+      transform: translateY(-2px);
+    }
+
+    /* Section styling */
+    section {
+      padding: 140px 0;
+    }
+
+    .section-header {
+      margin-bottom: 72px;
+      text-align: center;
+    }
+
+    .section-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.25em;
+      color: var(--glow-secondary);
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .section-eyebrow svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(2.25rem, 5vw, 3.5rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    /* Features Grid */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 28px;
+    }
+
+    .feature-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 36px;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, rgba(0,255,136,0.04) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--border-glow);
+      transform: translateY(-6px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .feature-card:hover::before {
+      opacity: 1;
+    }
+
+    .feature-icon {
+      width: 56px;
+      height: 56px;
+      background: var(--bg-elevated);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 1;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .feature-icon svg {
+      width: 26px;
+      height: 26px;
+      stroke: var(--glow-primary);
+      stroke-width: 1.75;
+      fill: none;
+    }
+
+    .feature-title {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 5px 10px;
+      background: rgba(255,107,53,0.15);
+      color: var(--glow-accent);
+      border-radius: 6px;
+      border: 1px solid rgba(255,107,53,0.3);
+    }
+
+    .feature-desc {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* How It Works - Timeline */
+    .timeline {
+      position: relative;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 28px;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: linear-gradient(to bottom,
+        var(--glow-primary) 0%,
+        var(--glow-secondary) 50%,
+        var(--glow-tertiary) 100%);
+      opacity: 0.4;
+      border-radius: 2px;
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-left: 88px;
+      padding-bottom: 56px;
+    }
+
+    .timeline-item:last-child {
+      padding-bottom: 0;
+    }
+
+    .timeline-number {
+      position: absolute;
+      left: 0;
+      width: 58px;
+      height: 58px;
+      background: var(--bg-surface);
+      border: 3px solid var(--glow-primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--glow-primary);
+      box-shadow: 0 0 30px rgba(0,255,136,0.2);
+    }
+
+    .timeline-title {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .timeline-desc {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    /* Commands Section */
+    .commands-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 18px;
+    }
+
+    .command-item {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 22px 26px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      transition: all 0.3s;
+    }
+
+    .command-item:hover {
+      border-color: var(--border-glow);
+      transform: translateX(4px);
+    }
+
+    .command-item svg {
+      width: 18px;
+      height: 18px;
+      stroke: var(--glow-secondary);
+      stroke-width: 2;
+      fill: none;
+      flex-shrink: 0;
+    }
+
+    .command-code {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      color: var(--glow-primary);
+      white-space: nowrap;
+    }
+
+    .command-desc {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    /* Use Cases */
+    .use-cases {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 22px;
+    }
+
+    .use-case {
+      padding: 28px;
+      background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-elevated) 100%);
+      border-radius: 16px;
+      border-left: 4px solid var(--glow-primary);
+      transition: all 0.3s;
+    }
+
+    .use-case:hover {
+      transform: translateX(6px);
+      border-left-color: var(--glow-secondary);
+    }
+
+    .use-case-title {
+      font-family: var(--font-display);
+      font-weight: 600;
+      margin-bottom: 10px;
+      font-size: 1.05rem;
+    }
+
+    .use-case-desc {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    /* Footer */
+    footer {
+      padding: 60px 0;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .footer-content {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 32px;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .footer-brand .logo-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+    }
+
+    .footer-brand .logo-icon svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 32px;
+    }
+
+    .footer-links a {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .footer-links a:hover {
+      color: var(--glow-primary);
+    }
+
+    .footer-links svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .footer-meta {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .footer-meta a {
+      color: var(--glow-primary);
+      text-decoration: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none;
+      }
+
+      .hero {
+        padding: 120px 0 80px;
+      }
+
+      .hero-title {
+        font-size: clamp(2.5rem, 10vw, 4rem);
+      }
+
+      .prompt-box {
+        padding: 28px;
+      }
+
+      .prompt-code {
+        font-size: 0.8rem;
+        padding: 18px;
+      }
+
+      .btn-group {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      section {
+        padding: 100px 0;
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .timeline::before {
+        left: 22px;
+      }
+
+      .timeline-item {
+        padding-left: 72px;
+      }
+
+      .timeline-number {
+        width: 48px;
+        height: 48px;
+        font-size: 1rem;
+      }
+
+      .footer-content {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .footer-links {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+    }
+  </style>
 </head>
 <body>
+  <!-- Conway's Game of Life - Evolution Animation -->
+  <canvas id="life-canvas"></canvas>
+
+  <!-- Atmospheric layers -->
+  <div class="bg-atmosphere"></div>
+  <div class="strata">
+    <div class="strata-line"></div>
+    <div class="strata-line"></div>
+    <div class="strata-line"></div>
+    <div class="strata-line"></div>
+  </div>
+
+  <!-- Navigation -->
+  <nav>
     <div class="container">
-        <section class="hero">
-            <div class="logo">🧬</div>
-            <h1>Darwin</h1>
-            <p class="tagline">Your AI's eyes on the build</p>
-            <p class="hero-description">
-                Visual regression testing for the vibe coding era.
-                See exactly what changed—whether you wrote it or your AI did.
-            </p>
-            <div class="cta-buttons">
-                <a href="https://github.com/dontoisme/darwin" class="btn btn-primary">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-                    View on GitHub
-                </a>
-                <a href="demo/" class="btn btn-demo">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    Live Demo
-                </a>
-                <a href="#install" class="btn btn-secondary">Quick Install</a>
-            </div>
-        </section>
-
-        <section class="install" id="install">
-            <div class="install-label">Paste into Claude Code or Cursor — that's it</div>
-            <div class="install-code" style="align-items: flex-start;">
-                <code style="white-space: pre-wrap; color: var(--text);">Install Darwin (brew tap dontoisme/darwin && brew install darwin) and set it up for visual regression testing. Run darwin init --ai-interactive, present the options to me, complete the setup including test navigation logic, then capture baseline screenshots.</code>
-                <button class="copy-btn" style="margin-top: 4px;" onclick="navigator.clipboard.writeText('Install Darwin (brew tap dontoisme/darwin && brew install darwin) and set it up for visual regression testing. Run darwin init --ai-interactive, present the options to me, complete the setup including test navigation logic, then capture baseline screenshots.')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                </button>
-            </div>
-            <p style="color: var(--text-muted); font-size: 14px; margin-top: 12px;">
-                Your AI installs Darwin, detects your screens, writes the tests, and captures screenshots. You just pick options.
-            </p>
-
-            <details style="margin-top: 24px;">
-                <summary style="color: var(--text-muted); cursor: pointer; font-size: 14px;">Manual install</summary>
-                <div style="margin-top: 16px;">
-                    <div class="install-code">
-                        <code>brew tap dontoisme/darwin && brew install darwin</code>
-                        <button class="copy-btn" onclick="navigator.clipboard.writeText('brew tap dontoisme/darwin && brew install darwin')">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                        </button>
-                    </div>
-                    <p style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">Then run <code style="color: var(--accent-green);">darwin init</code> in your iOS project.</p>
-                </div>
-            </details>
-        </section>
-
-        <section class="demo">
-            <h2>Interactive Viewer</h2>
-            <p>Explore your app's visual history with the unified timeline viewer.</p>
-            <a href="demo/" class="btn btn-demo" style="font-size: 18px; padding: 16px 32px;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                Open Demo Viewer
-            </a>
-            <div class="demo-preview">
-                <div class="demo-header">
-                    <span class="demo-dot red"></span>
-                    <span class="demo-dot yellow"></span>
-                    <span class="demo-dot green"></span>
-                </div>
-                <div class="demo-content">
-                    <div class="demo-modes">
-                        <div class="demo-mode">
-                            <div class="demo-mode-icon">📱</div>
-                            <span class="demo-mode-label">Single</span>
-                        </div>
-                        <div class="demo-mode">
-                            <div class="demo-mode-icon">⚖️</div>
-                            <span class="demo-mode-label">Compare</span>
-                        </div>
-                        <div class="demo-mode">
-                            <div class="demo-mode-icon">🗺️</div>
-                            <span class="demo-mode-label">Map</span>
-                        </div>
-                    </div>
-                    <p style="color: var(--text-muted); font-size: 14px;">
-                        Browse captures, compare changes, visualize flow with timeline playback and group filtering
-                    </p>
-                </div>
-            </div>
-        </section>
-
-        <section class="features">
-            <h2>Features</h2>
-            <div class="feature-grid">
-                <div class="feature">
-                    <div class="feature-icon">🎯</div>
-                    <h3>Smart Capture</h3>
-                    <p>Only screenshot screens affected by your code changes. Darwin auto-detects new views and updates its manifest—no manual config maintenance.</p>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">🔍</div>
-                    <h3>Pixel-Level Diff</h3>
-                    <p>ImageMagick-powered comparison catches even subtle visual regressions with HTML reports.</p>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">🤖</div>
-                    <h3>AI-Aware Diffing <span class="feature-badge">Coming soon</span></h3>
-                    <p>Structured diff reports your AI can review. Close the loop—let the same assistant that wrote the code verify the visual result.</p>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">📊</div>
-                    <h3>Visual Timeline</h3>
-                    <p>Interactive viewer with timeline playback and group filtering. Watch your app evolve commit-by-commit.</p>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">🗺️</div>
-                    <h3>App Flow Map</h3>
-                    <p>Visualize screen connections and navigation paths. See your app's architecture at a glance.</p>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">🔗</div>
-                    <h3>Git Hooks</h3>
-                    <p>Auto-capture or prompt after commits with Swift changes. Seamless git workflow integration.</p>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">⚡</div>
-                    <h3>CI-Ready</h3>
-                    <p>Works with any CI system. Generate diff reports for PR reviews automatically.</p>
-                </div>
-            </div>
-        </section>
-
-        <section class="commands">
-            <h2>Commands</h2>
-            <div class="command-grid">
-                <div class="command">
-                    <code>darwin init</code>
-                    <p>Initialize in your iOS project</p>
-                </div>
-                <div class="command">
-                    <code>darwin capture</code>
-                    <p>Smart capture changed screens</p>
-                </div>
-                <div class="command">
-                    <code>darwin diff</code>
-                    <p>Compare between captures</p>
-                </div>
-                <div class="command">
-                    <code>darwin viewer</code>
-                    <p>Open interactive timeline</p>
-                </div>
-                <div class="command">
-                    <code>darwin status</code>
-                    <p>Show state and pending changes</p>
-                </div>
-                <div class="command">
-                    <code>darwin hook install</code>
-                    <p>Auto-capture on commits</p>
-                </div>
-            </div>
-        </section>
-
-        <section class="how-it-works">
-            <h2>How It Works</h2>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h3>Manifest maps source to screens</h3>
-                        <p>Define which Swift files affect which UI screens in manifest.json</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h3>Git diff detects changes</h3>
-                        <p>Darwin checks which files changed since your last capture</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h3>XCUITest captures affected screens</h3>
-                        <p>Only the screens that could have changed are re-captured</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <h3>Review what changed</h3>
-                        <p>Browse in the viewer, or feed structured diffs to your AI for automated review.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="example">
-            <h2>How It Works</h2>
-            <div class="code-block">
-                <div class="code-header">What your AI assistant does</div>
-                <pre><span class="comment"># 1. Runs darwin init, presents options in native UI</span>
-<span class="command">darwin init</span> <span class="flag">--ai-interactive</span>
-
-<span class="comment"># 2. Detects all your SwiftUI screens</span>
-<span class="command">darwin detect</span> <span class="flag">--add</span>
-
-<span class="comment"># 3. Writes test navigation logic for each screen</span>
-<span class="comment"># 4. Captures baseline screenshots</span>
-<span class="command">darwin capture</span> <span class="flag">--baseline</span>
-
-<span class="comment"># 5. Opens the visual timeline</span>
-<span class="command">darwin viewer</span></pre>
-            </div>
-            <p style="color: var(--text-muted); font-size: 14px; margin-top: 16px; text-align: center;">
-                After setup, Darwin auto-captures after every commit. Just code—Darwin watches.
-            </p>
-        </section>
-
-        <section class="use-cases">
-            <h2>Use Cases</h2>
-            <div class="use-case-grid">
-                <div class="use-case"><strong>AI-assisted development</strong> — Your AI added a settings screen. Did it accidentally break the home view? Darwin shows you.</div>
-                <div class="use-case"><strong>Solo builder sanity check</strong> — No QA team? No problem. Automated visual history keeps you honest with yourself.</div>
-                <div class="use-case"><strong>Visual regression testing</strong> — Catch unintended UI changes before they ship.</div>
-                <div class="use-case"><strong>Design review</strong> — Generate visual diffs for PR reviews or async feedback.</div>
-                <div class="use-case"><strong>Development timelapse</strong> — Build a visual history of your app's evolution. Great for demos and retrospectives.</div>
-            </div>
-        </section>
+      <a href="#" class="logo">
+        <span class="logo-icon">
+          <!-- Ammonite fossil spiral logo -->
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+            <path d="M12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/>
+            <circle cx="12" cy="12" r="2"/>
+          </svg>
+        </span>
+        Darwin
+      </a>
+      <ul class="nav-links">
+        <li><a href="#features"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>Features</a></li>
+        <li><a href="#how-it-works"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>How It Works</a></li>
+        <li><a href="#commands"><svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>Commands</a></li>
+        <li><a href="https://github.com/dontoisme/darwin"><svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>GitHub</a></li>
+      </ul>
     </div>
+  </nav>
 
-    <footer>
-        <div class="container">
-            <p>MIT License · Created by <a href="https://github.com/dontoisme">Don Hogan</a></p>
-            <p style="margin-top: 8px;">
-                <a href="https://github.com/dontoisme/darwin">GitHub</a> ·
-                <a href="https://github.com/dontoisme/darwin#quick-start">Docs</a> ·
-                <a href="https://github.com/dontoisme/darwin/issues">Issues</a>
-            </p>
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-eyebrow">Visual Regression Testing</div>
+      <h1 class="hero-title">
+        Your AI's <span class="highlight">eyes</span><br>
+        on the build
+      </h1>
+      <p class="hero-subtitle">
+        Visual regression testing for the vibe coding era. See exactly what changed—whether you wrote it or your AI did.
+      </p>
+
+      <!-- THE PROMPT BOX - Primary CTA -->
+      <div class="prompt-box">
+        <div class="prompt-label">
+          <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Paste into Claude Code or Cursor
         </div>
-    </footer>
+        <div class="prompt-code">
+          <button class="copy-btn" onclick="copyPrompt()">
+            <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy
+          </button>
+          Install Darwin (brew tap dontoisme/darwin && brew install darwin) and set it up for visual regression testing. Run darwin init --ai-interactive, present the options to me, complete the setup including test navigation logic, then capture baseline screenshots.
+        </div>
+        <p class="prompt-hint">
+          Your AI installs Darwin, detects your screens, writes the tests, and captures screenshots. <strong>You just pick options.</strong>
+        </p>
+      </div>
+
+      <div class="btn-group">
+        <a href="demo/" class="btn btn-primary">
+          <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Live Demo
+        </a>
+        <a href="https://github.com/dontoisme/darwin" class="btn btn-secondary">
+          <svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-eyebrow">
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Capabilities
+        </div>
+        <h2 class="section-title">Built for AI-assisted development</h2>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          </div>
+          <h3 class="feature-title">Smart Capture</h3>
+          <p class="feature-desc">Only screenshot screens affected by your code changes. Darwin auto-detects new views and updates its manifest—no manual config maintenance.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          </div>
+          <h3 class="feature-title">Pixel-Level Diff</h3>
+          <p class="feature-desc">ImageMagick-powered comparison catches even subtle visual regressions with HTML reports.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M20 12a8 8 0 1 1-8-8"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+          <h3 class="feature-title">AI-Aware Diffing <span class="badge">Soon</span></h3>
+          <p class="feature-desc">Structured diff reports your AI can review. Close the loop—let the same assistant that wrote the code verify the visual result.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <h3 class="feature-title">Visual Timeline</h3>
+          <p class="feature-desc">Interactive viewer with timeline playback and group filtering. Watch your app evolve commit-by-commit.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="16"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="19" r="3"/><line x1="12" y1="16" x2="6" y2="16"/><line x1="12" y1="16" x2="18" y2="16"/></svg>
+          </div>
+          <h3 class="feature-title">App Flow Map</h3>
+          <p class="feature-desc">Visualize screen connections and navigation paths. See your app's architecture at a glance.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/><line x1="12" y1="1.05" x2="12" y2="7"/><line x1="12" y1="17.01" x2="12" y2="22.96"/></svg>
+          </div>
+          <h3 class="feature-title">Git Hooks</h3>
+          <p class="feature-desc">Auto-capture or prompt after commits with Swift changes. Seamless git workflow integration.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section id="how-it-works">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-eyebrow">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Process
+        </div>
+        <h2 class="section-title">How Darwin works</h2>
+      </div>
+
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-number">1</div>
+          <h3 class="timeline-title">Manifest maps source to screens</h3>
+          <p class="timeline-desc">Darwin tracks which Swift files affect which UI screens in manifest.json—auto-updated as you add views.</p>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-number">2</div>
+          <h3 class="timeline-title">Git diff detects changes</h3>
+          <p class="timeline-desc">When you commit, Darwin checks which files changed since the last capture.</p>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-number">3</div>
+          <h3 class="timeline-title">XCUITest captures affected screens</h3>
+          <p class="timeline-desc">Only screens that could have changed are re-captured. No wasted CI time.</p>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-number">4</div>
+          <h3 class="timeline-title">Review what changed</h3>
+          <p class="timeline-desc">Browse in the viewer, or feed structured diffs to your AI for automated review.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Commands -->
+  <section id="commands">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-eyebrow">
+          <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          CLI
+        </div>
+        <h2 class="section-title">Commands</h2>
+      </div>
+
+      <div class="commands-grid">
+        <div class="command-item">
+          <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <code class="command-code">darwin init</code>
+          <span class="command-desc">Initialize in your iOS project</span>
+        </div>
+        <div class="command-item">
+          <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <code class="command-code">darwin capture</code>
+          <span class="command-desc">Smart capture changed screens</span>
+        </div>
+        <div class="command-item">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <code class="command-code">darwin diff</code>
+          <span class="command-desc">Compare between captures</span>
+        </div>
+        <div class="command-item">
+          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <code class="command-code">darwin viewer</code>
+          <span class="command-desc">Open interactive timeline</span>
+        </div>
+        <div class="command-item">
+          <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <code class="command-code">darwin status</code>
+          <span class="command-desc">Show state and pending changes</span>
+        </div>
+        <div class="command-item">
+          <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <code class="command-code">darwin hook install</code>
+          <span class="command-desc">Auto-capture on commits</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Use Cases -->
+  <section id="use-cases">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-eyebrow">
+          <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          Applications
+        </div>
+        <h2 class="section-title">Use cases</h2>
+      </div>
+
+      <div class="use-cases">
+        <div class="use-case">
+          <h3 class="use-case-title">AI-assisted development</h3>
+          <p class="use-case-desc">Your AI added a settings screen. Did it accidentally break the home view? Darwin shows you.</p>
+        </div>
+        <div class="use-case">
+          <h3 class="use-case-title">Solo builder sanity check</h3>
+          <p class="use-case-desc">No QA team? No problem. Automated visual history keeps you honest with yourself.</p>
+        </div>
+        <div class="use-case">
+          <h3 class="use-case-title">Visual regression testing</h3>
+          <p class="use-case-desc">Catch unintended UI changes before they ship.</p>
+        </div>
+        <div class="use-case">
+          <h3 class="use-case-title">Design review</h3>
+          <p class="use-case-desc">Generate visual diffs for PR reviews or async feedback.</p>
+        </div>
+        <div class="use-case">
+          <h3 class="use-case-title">Development timelapse</h3>
+          <p class="use-case-desc">Build a visual history of your app's evolution. Great for demos and retrospectives.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <span class="logo-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+              <path d="M12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/>
+              <circle cx="12" cy="12" r="2"/>
+            </svg>
+          </span>
+          <span class="footer-meta">MIT License</span>
+        </div>
+
+        <div class="footer-links">
+          <a href="https://github.com/dontoisme/darwin">
+            <svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            GitHub
+          </a>
+          <a href="https://github.com/dontoisme/darwin#quick-start">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Docs
+          </a>
+          <a href="https://github.com/dontoisme/darwin/issues">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Issues
+          </a>
+          <a href="demo/">
+            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Demo
+          </a>
+        </div>
+
+        <p class="footer-meta">
+          Created by <a href="https://github.com/dontoisme">Don Hogan</a>
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function copyPrompt() {
+      const prompt = `Install Darwin (brew tap dontoisme/darwin && brew install darwin) and set it up for visual regression testing. Run darwin init --ai-interactive, present the options to me, complete the setup including test navigation logic, then capture baseline screenshots.`;
+      navigator.clipboard.writeText(prompt);
+      const btn = document.querySelector('.copy-btn');
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Copied!';
+      btn.style.background = 'var(--glow-primary)';
+      btn.style.color = 'var(--bg-deep)';
+      setTimeout(() => {
+        btn.innerHTML = originalHTML;
+        btn.style.background = '';
+        btn.style.color = '';
+      }, 2000);
+    }
+
+    // Conway's Game of Life - Evolution metaphor
+    (function() {
+      const canvas = document.getElementById('life-canvas');
+      const ctx = canvas.getContext('2d');
+
+      const cellSize = 14;
+      let cols, rows;
+      let grid, nextGrid;
+
+      // Bioluminescent colors with age-based fading
+      const colors = {
+        newborn: '#00ff88',
+        young: '#00dd77',
+        mature: '#00bb66',
+        aging: '#009955',
+        old: '#007744'
+      };
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        cols = Math.ceil(canvas.width / cellSize);
+        rows = Math.ceil(canvas.height / cellSize);
+        initGrid();
+      }
+
+      function initGrid() {
+        grid = new Array(cols).fill(null).map(() =>
+          new Array(rows).fill(null).map(() => ({
+            alive: Math.random() < 0.06,
+            age: 0
+          }))
+        );
+        nextGrid = new Array(cols).fill(null).map(() =>
+          new Array(rows).fill(null).map(() => ({ alive: false, age: 0 }))
+        );
+      }
+
+      function countNeighbors(x, y) {
+        let count = 0;
+        for (let i = -1; i <= 1; i++) {
+          for (let j = -1; j <= 1; j++) {
+            if (i === 0 && j === 0) continue;
+            const col = (x + i + cols) % cols;
+            const row = (y + j + rows) % rows;
+            if (grid[col][row].alive) count++;
+          }
+        }
+        return count;
+      }
+
+      function update() {
+        for (let x = 0; x < cols; x++) {
+          for (let y = 0; y < rows; y++) {
+            const neighbors = countNeighbors(x, y);
+            const cell = grid[x][y];
+
+            if (cell.alive) {
+              nextGrid[x][y].alive = neighbors === 2 || neighbors === 3;
+              nextGrid[x][y].age = nextGrid[x][y].alive ? Math.min(cell.age + 1, 5) : 0;
+            } else {
+              nextGrid[x][y].alive = neighbors === 3;
+              nextGrid[x][y].age = 0;
+            }
+          }
+        }
+
+        [grid, nextGrid] = [nextGrid, grid];
+
+        // Seed new life patterns occasionally
+        if (Math.random() < 0.015) {
+          const x = Math.floor(Math.random() * (cols - 4)) + 2;
+          const y = Math.floor(Math.random() * (rows - 4)) + 2;
+          // R-pentomino - a "methuselah" pattern
+          grid[x][y].alive = true;
+          grid[x + 1][y].alive = true;
+          grid[x - 1][y + 1].alive = true;
+          grid[x][y + 1].alive = true;
+          grid[x][y + 2].alive = true;
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (let x = 0; x < cols; x++) {
+          for (let y = 0; y < rows; y++) {
+            const cell = grid[x][y];
+            if (cell.alive) {
+              const ageColors = [colors.newborn, colors.young, colors.mature, colors.aging, colors.old];
+              ctx.fillStyle = ageColors[Math.min(cell.age, 4)];
+
+              // Slightly rounded cells
+              const padding = 1;
+              ctx.beginPath();
+              ctx.roundRect(
+                x * cellSize + padding,
+                y * cellSize + padding,
+                cellSize - padding * 2,
+                cellSize - padding * 2,
+                2
+              );
+              ctx.fill();
+            }
+          }
+        }
+      }
+
+      function loop() {
+        update();
+        draw();
+        setTimeout(() => requestAnimationFrame(loop), 140);
+      }
+
+      window.addEventListener('resize', resize);
+      resize();
+      loop();
+    })();
+  </script>
 </body>
 </html>
