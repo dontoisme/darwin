@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Darwin - Screenshot Viewer</title>
     <style>
         :root {
@@ -17,9 +17,6 @@
             --accent-yellow: #d29922;
             --accent-red: #f85149;
             --accent-purple: #a371f7;
-            /* Safe area insets for notched phones */
-            --safe-area-top: env(safe-area-inset-top, 0px);
-            --safe-area-bottom: env(safe-area-inset-bottom, 0px);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -156,6 +153,66 @@
         .toggle-btn:hover { color: var(--text); }
         .toggle-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 
+        .layer-btn {
+            padding: 2px 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            border-radius: 3px;
+            font-size: 10px;
+            cursor: pointer;
+        }
+        .layer-btn:hover { color: var(--text); }
+        .layer-btn.active { background: var(--accent-green); color: var(--bg); border-color: var(--accent-green); }
+        .layer-btn[data-layer="sheet"].active { background: var(--accent-purple); border-color: var(--accent-purple); }
+        .layer-btn[data-layer="state"].active { background: var(--accent-yellow); border-color: var(--accent-yellow); color: var(--bg); }
+
+        /* Edit Mode */
+        body.edit-mode .connection {
+            cursor: pointer;
+            pointer-events: stroke;
+        }
+        body.edit-mode .connection:hover {
+            stroke-width: 8;
+            filter: drop-shadow(0 0 4px currentColor);
+        }
+        body.edit-mode .connection.selected {
+            stroke: var(--accent) !important;
+            stroke-width: 6;
+            filter: drop-shadow(0 0 6px var(--accent));
+        }
+        .edit-info-panel {
+            position: fixed;
+            bottom: 120px;
+            left: 24px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            min-width: 280px;
+            z-index: 200;
+            display: none;
+        }
+        body.edit-mode .edit-info-panel { display: block; }
+        .edit-info-panel h3 {
+            margin: 0 0 12px 0;
+            color: var(--accent);
+            font-size: 14px;
+        }
+        .edit-info-panel .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        .edit-info-panel .info-label {
+            color: var(--text-muted);
+        }
+        .edit-info-panel .info-value {
+            color: var(--text);
+            font-family: monospace;
+        }
+
         /* Main content */
         .main {
             padding-top: 60px;
@@ -274,62 +331,6 @@
             cursor: pointer;
             font-size: 14px;
         }
-        .timelapse-filter-btns {
-            display: flex;
-            gap: 4px;
-        }
-        .timelapse-filter-btns button {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        .timelapse-filter-btns button.active {
-            background: var(--accent);
-            color: var(--bg);
-            border-color: var(--accent);
-        }
-        .commit-list {
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            padding: 8px 0;
-            margin-top: 8px;
-        }
-        .commit-item {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 8px;
-            background: var(--bg-tertiary);
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 11px;
-            white-space: nowrap;
-            cursor: pointer;
-            border: 1px solid transparent;
-        }
-        .commit-item.active {
-            border-color: var(--accent);
-            background: var(--bg-secondary);
-        }
-        .commit-item.changed {
-            color: var(--accent-yellow);
-        }
-        .commit-item input[type="checkbox"] {
-            width: 12px;
-            height: 12px;
-            margin: 0;
-            cursor: pointer;
-        }
-        .timelapse-counter {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-left: 8px;
-        }
 
         /* Map View */
         .map-container {
@@ -397,11 +398,24 @@
             stroke-linecap: round;
         }
         .connection.hidden { opacity: 0; }
+        .connection.has-element {
+            stroke: var(--accent-green);
+            stroke-width: 4;
+        }
+        .connection.missing-element {
+            stroke: var(--accent-yellow);
+            stroke-dasharray: 8 4;
+            opacity: 0.6;
+        }
         .connection-arrow {
             fill: var(--accent-red);
             opacity: 0.9;
         }
         .connection-arrow.hidden { opacity: 0; }
+        .connection.has-element + .connection-arrow,
+        .connection.has-element ~ .connection-arrow[data-from] {
+            fill: var(--accent-green);
+        }
 
         /* Map Timeline Controls */
         .map-timeline {
@@ -607,7 +621,6 @@
             width: 70px;
             height: 120px;
             z-index: 5;
-            box-shadow: 0 0 15px rgba(88, 166, 255, 0.4);
         }
         .mini-screen.incoming { border-color: var(--accent-green); }
         .mini-screen.outgoing { border-color: var(--accent-yellow); }
@@ -696,17 +709,8 @@
             align-items: center;
             margin-bottom: 12px;
         }
-        .evolution-header h4 {
-            margin: 0;
-            font-size: 12px;
-            text-transform: uppercase;
-            color: var(--text-muted);
-        }
-        .evolution-controls {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
+        .evolution-header h4 { margin: 0; font-size: 12px; text-transform: uppercase; color: var(--text-muted); }
+        .evolution-controls { display: flex; gap: 8px; align-items: center; }
         .evolution-controls button {
             background: var(--bg-tertiary);
             border: 1px solid var(--border);
@@ -716,14 +720,8 @@
             cursor: pointer;
             font-size: 12px;
         }
-        .evolution-controls button:hover {
-            border-color: var(--accent);
-        }
-        .evolution-controls button.active {
-            background: var(--accent);
-            color: var(--bg);
-            border-color: var(--accent);
-        }
+        .evolution-controls button:hover { border-color: var(--accent); }
+        .evolution-controls button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
         .evolution-filmstrip {
             display: flex;
             gap: 12px;
@@ -731,17 +729,9 @@
             padding: 8px 0;
             scroll-behavior: smooth;
         }
-        .evolution-filmstrip::-webkit-scrollbar {
-            height: 6px;
-        }
-        .evolution-filmstrip::-webkit-scrollbar-track {
-            background: var(--bg-tertiary);
-            border-radius: 3px;
-        }
-        .evolution-filmstrip::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 3px;
-        }
+        .evolution-filmstrip::-webkit-scrollbar { height: 6px; }
+        .evolution-filmstrip::-webkit-scrollbar-track { background: var(--bg-tertiary); border-radius: 3px; }
+        .evolution-filmstrip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
         .evolution-frame {
             flex-shrink: 0;
             width: 80px;
@@ -749,12 +739,8 @@
             transition: transform 0.2s;
             position: relative;
         }
-        .evolution-frame:hover {
-            transform: scale(1.05);
-        }
-        .evolution-frame.active {
-            transform: scale(1.05);
-        }
+        .evolution-frame:hover { transform: scale(1.05); }
+        .evolution-frame.active { transform: scale(1.05); }
         .evolution-frame.active::after {
             content: '';
             position: absolute;
@@ -762,9 +748,6 @@
             border: 2px solid var(--accent);
             border-radius: 10px;
             pointer-events: none;
-        }
-        .evolution-frame.changed {
-            border-color: var(--accent-yellow);
         }
         .evolution-frame.changed::before {
             content: '●';
@@ -783,30 +766,11 @@
             border: 2px solid var(--border);
             background: var(--bg-tertiary);
         }
-        .evolution-frame .frame-info {
-            margin-top: 6px;
-            text-align: center;
-        }
-        .evolution-frame .commit {
-            font-family: monospace;
-            font-size: 10px;
-            color: var(--accent);
-        }
-        .evolution-frame .change-pct {
-            font-size: 9px;
-            color: var(--accent-yellow);
-            margin-top: 2px;
-        }
-        .evolution-empty {
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 13px;
-            padding: 20px;
-        }
-        .evolution-counter {
-            font-size: 11px;
-            color: var(--text-muted);
-        }
+        .evolution-frame .frame-info { margin-top: 6px; text-align: center; }
+        .evolution-frame .commit { font-family: monospace; font-size: 10px; color: var(--accent); }
+        .evolution-frame .change-pct { font-size: 9px; color: var(--accent-yellow); margin-top: 2px; }
+        .evolution-empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px; }
+        .evolution-counter { font-size: 11px; color: var(--text-muted); }
 
         /* Filters */
         .filters {
@@ -846,7 +810,6 @@
 
         /* Mobile responsive styles */
         @media (max-width: 768px) {
-            /* Header adjustments */
             .header {
                 height: auto;
                 min-height: 60px;
@@ -854,32 +817,16 @@
                 padding: 12px 16px;
                 gap: 12px;
             }
-            .header h1 {
-                font-size: 16px;
-            }
+            .header h1 { font-size: 16px; }
             .mode-tabs {
                 order: 3;
                 width: 100%;
                 justify-content: center;
             }
-            .mode-tab {
-                padding: 10px 14px;
-                font-size: 13px;
-            }
-            .header-controls {
-                order: 2;
-            }
-            .capture-select {
-                max-width: 120px;
-                font-size: 12px;
-                padding: 6px 8px;
-            }
-            .mobile-menu-btn {
-                display: block;
-                order: 4;
-            }
-
-            /* Map toolbar - collapsible on mobile */
+            .mode-tab { padding: 10px 14px; font-size: 13px; }
+            .header-controls { order: 2; }
+            .capture-select { max-width: 120px; font-size: 12px; padding: 6px 8px; }
+            .mobile-menu-btn { display: block; order: 4; }
             .map-toolbar {
                 display: none !important;
                 position: fixed;
@@ -896,36 +843,12 @@
                 max-height: 50vh;
                 overflow-y: auto;
             }
-            .map-toolbar.mobile-open {
-                display: flex !important;
-            }
-            .map-toolbar .filter-divider {
-                display: none;
-            }
-            .map-toolbar .filter-group {
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-            .map-toolbar .filter-btn {
-                padding: 8px 14px;
-                font-size: 14px;
-            }
-            .map-toolbar .toggle-btn {
-                padding: 8px 14px;
-                font-size: 14px;
-            }
-
-            /* Main content */
-            .main {
-                padding-top: 110px;
-            }
-
-            /* Legend - hide on mobile, show in toolbar */
-            .legend {
-                display: none;
-            }
-
-            /* Modal - stack vertically */
+            .map-toolbar.mobile-open { display: flex !important; }
+            .map-toolbar .filter-divider { display: none; }
+            .map-toolbar .filter-group { flex-wrap: wrap; justify-content: center; }
+            .map-toolbar .filter-btn, .map-toolbar .toggle-btn { padding: 8px 14px; font-size: 14px; }
+            .main { padding-top: 110px; }
+            .legend { display: none; }
             .modal {
                 flex-direction: column;
                 max-width: 100vw;
@@ -934,311 +857,49 @@
                 height: 100vh;
                 border-radius: 0;
             }
-            .modal img {
-                max-height: 50vh;
-                max-width: 100vw;
-                width: 100%;
-                object-fit: contain;
-            }
+            .modal img { max-height: 50vh; max-width: 100vw; width: 100%; }
             .modal-info {
                 width: 100%;
-                max-height: 45vh;
-                overflow-y: auto;
-                padding: 12px 16px;
+                max-height: 50vh;
+                padding: 16px;
                 border-left: none;
                 border-top: 1px solid var(--border);
             }
-            .modal-info h2 {
-                font-size: 16px;
-            }
-            .modal-info h4 {
-                font-size: 11px;
-                margin: 10px 0 6px;
-            }
-            .modal-info ul {
-                font-size: 13px;
-            }
-            .modal-close {
-                top: calc(10px + var(--safe-area-top));
-                right: 10px;
-            }
-
+            .modal-info h2 { font-size: 18px; }
             /* Mini-map for mobile - larger screens, no scaling */
-            .mini-map {
-                height: 280px;
-                padding: 8px;
-                overflow: hidden;
-            }
-            .mini-map-legend {
-                font-size: 10px;
-                gap: 8px;
-                padding: 4px 8px;
-            }
-            /* Larger screens for better mobile visibility */
-            .mini-screen {
-                width: 60px;
-                height: 100px;
-                font-size: 9px;
-                border-width: 2px;
-            }
-            .mini-screen.current {
-                width: 80px;
-                height: 135px;
-            }
-            /* Thicker connection lines for visibility */
-            .mini-connection {
-                stroke-width: 4px;
-            }
-
-            /* Evolution filmstrip */
-            .screen-evolution {
-                padding: 12px;
-            }
-            .evolution-header {
-                flex-direction: column;
-                gap: 8px;
-                align-items: flex-start;
-            }
-            .evolution-controls {
-                width: 100%;
-                justify-content: space-between;
-            }
-            .evolution-controls button {
-                padding: 8px 10px;
-                font-size: 11px;
-            }
-            .evolution-filmstrip {
-                -webkit-overflow-scrolling: touch;
-                scroll-snap-type: x proximity;
-                overscroll-behavior-x: contain;
-            }
-            .evolution-frame {
-                width: 60px;
-                scroll-snap-align: center;
-            }
-            .evolution-frame img {
-                height: 105px;
-            }
-            .evolution-frame .commit {
-                font-size: 9px;
-            }
-            .evolution-frame .change-pct {
-                font-size: 8px;
-            }
-
-            /* Map timeline controls - compact for mobile */
-            .map-timeline {
-                height: auto;
-                min-height: 75px;
-                padding: 10px 12px;
-                padding-bottom: calc(10px + var(--safe-area-bottom));
-            }
-            .timeline-row {
-                gap: 8px;
-                flex-wrap: wrap;
-            }
-            .timeline-btn {
-                padding: 6px 10px;
-                font-size: 11px;
-            }
-            .timeline-info {
-                font-size: 11px;
-            }
-            .map-container {
-                bottom: 75px;
-            }
-
-            /* Timelapse controls safe area */
-            .timelapse-controls {
-                padding-bottom: calc(16px + var(--safe-area-bottom));
-            }
-            .commit-list {
-                -webkit-overflow-scrolling: touch;
-                scroll-snap-type: x proximity;
-                overscroll-behavior-x: contain;
-            }
-            .timeline-controls {
-                flex-wrap: wrap;
-                gap: 8px;
-            }
-            .timeline-controls button {
-                padding: 8px 12px;
-                font-size: 12px;
-            }
-            .timeline-track-container {
-                min-width: 100%;
-                margin-top: 8px;
-            }
-
-            /* Screen cards in single view */
-            .view-single {
-                padding: 16px !important;
-            }
-            .screen-card {
-                width: calc(50% - 8px) !important;
-            }
-
-            /* Compare view */
-            .view-compare {
-                flex-direction: column !important;
-            }
-            .compare-panel {
-                width: 100% !important;
-                max-height: 50vh;
-            }
-
-            /* Map view mobile - labels visible, thicker lines */
-            .map-screen .screen-label {
-                font-size: 11px !important;
-                opacity: 1 !important;
-            }
-            .connection {
-                stroke-width: 6 !important;
-            }
+            .mini-map { height: 280px; padding: 8px; overflow: hidden; }
+            .mini-screen { width: 60px; height: 100px; font-size: 9px; border-width: 2px; }
+            .mini-screen.current { width: 80px; height: 135px; }
+            .mini-connection { stroke-width: 4px; }
+            .map-timeline { padding: 12px 16px; }
+            .timeline-controls { flex-wrap: wrap; gap: 8px; }
+            .timeline-controls button { padding: 8px 12px; font-size: 12px; }
+            .timeline-track-container { min-width: 100%; margin-top: 8px; }
+            .view-single { padding: 16px !important; }
+            .screen-card { width: calc(50% - 8px) !important; }
+            .view-compare { flex-direction: column !important; }
+            .compare-panel { width: 100% !important; max-height: 50vh; }
+            .map-screen .screen-label { font-size: 11px !important; opacity: 1 !important; }
+            .connection { stroke-width: 6 !important; }
         }
-
-        /* Medium mobile phones (iPhone 6/7/8/X/11/12/13/14) */
-        @media (max-width: 480px) {
-            .header {
-                padding: 10px 12px;
-                gap: 10px;
-            }
-            .header h1 {
-                font-size: 15px;
-            }
-            .mode-tabs {
-                padding: 3px;
-            }
-            .mode-tab {
-                padding: 8px 12px;
-                font-size: 12px;
-            }
-            .capture-select {
-                max-width: 100px;
-                font-size: 11px;
-            }
-            .screen-grid {
-                grid-template-columns: 1fr;
-                gap: 12px;
-            }
-            .screen-card .label {
-                padding: 10px;
-            }
-            .screen-card .label h3 {
-                font-size: 13px;
-            }
-            .map-screen .screen-label {
-                font-size: 10px !important;
-            }
-            .modal-close {
-                width: 36px;
-                height: 36px;
-                font-size: 20px;
-            }
-            .modal-info {
-                max-height: 40vh;
-                padding: 12px;
-            }
-            /* Mini-map - slightly smaller on phones but still visible */
-            .mini-screen {
-                width: 55px;
-                height: 90px;
-            }
-            .mini-screen.current {
-                width: 75px;
-                height: 125px;
-            }
-            .evolution-frame {
-                width: 55px;
-            }
-            .evolution-frame img {
-                height: 95px;
-            }
-            .map-timeline {
-                min-height: 70px;
-                padding: 8px 10px;
-                padding-bottom: calc(8px + var(--safe-area-bottom));
-            }
-            .timeline-btn {
-                padding: 5px 8px;
-                font-size: 10px;
-            }
-            .speed-select {
-                padding: 5px 8px;
-                font-size: 10px;
-            }
-            .map-container {
-                bottom: 70px;
-            }
-            /* Commit list mobile */
-            .commit-item {
-                padding: 8px 10px;
-                font-size: 12px;
-            }
-            .timelapse-filter-btns button {
-                padding: 8px 10px;
-                font-size: 11px;
-            }
-        }
-
-        /* Extra small screens (iPhone SE, etc) */
         @media (max-width: 390px) {
-            .mode-tab {
-                padding: 8px 10px;
-                font-size: 12px;
-            }
-            .screen-card {
-                width: 100% !important;
-            }
-            .evolution-frame {
-                width: 50px;
-            }
-            .evolution-frame img {
-                height: 85px;
-            }
-            /* Slightly thicker lines for smallest screens */
-            .connection {
-                stroke-width: 7 !important;
-            }
+            .mode-tab { padding: 8px 10px; font-size: 12px; }
+            .screen-card { width: 100% !important; }
+            .connection { stroke-width: 7 !important; }
         }
-
-        /* Touch-friendly tap targets */
         @media (pointer: coarse) {
-            .filter-btn, .toggle-btn, .mode-tab, button {
-                min-height: 44px;
-            }
-            /* Larger checkboxes for touch */
-            .commit-item input[type="checkbox"] {
-                width: 20px;
-                height: 20px;
-            }
-            .filter-toggle input[type="checkbox"] {
-                width: 22px;
-                height: 22px;
-            }
-            /* Larger timeline markers */
-            .timeline-marker {
-                width: 8px;
-                height: 20px;
-            }
-            /* Commit list touch targets */
-            .commit-item {
-                min-height: 44px;
-                padding: 10px 12px;
-            }
-            .map-screen {
-                cursor: pointer;
-            }
+            .filter-btn, .toggle-btn, .mode-tab, button { min-height: 44px; min-width: 44px; }
+            .map-screen { cursor: pointer; }
         }
     </style>
 </head>
 <body>
     <header class="header">
-        <a href="../" style="text-decoration: none; color: inherit;"><h1>🧬 Darwin</h1></a>
+        <h1>🧬 Darwin</h1>
         <div class="mode-tabs">
-            <button class="mode-tab active" data-mode="map">Map</button>
             <button class="mode-tab" data-mode="single">Single</button>
             <button class="mode-tab" data-mode="compare">Compare</button>
+            <button class="mode-tab active" data-mode="map">Map</button>
         </div>
         <div class="map-toolbar" id="mapToolbar">
             <span class="filter-label">Groups</span>
@@ -1256,8 +917,15 @@
             </div>
             <div class="filter-divider"></div>
             <button class="toggle-btn active" id="showFlowsBtn" onclick="toggleFlows()">Flows</button>
+            <div class="layer-toggles" id="layerToggles" style="display: inline-flex; gap: 4px; margin-left: 8px;">
+                <button class="layer-btn active" data-layer="navigation" onclick="toggleLayer('navigation')" title="Screen navigation">Nav</button>
+                <button class="layer-btn active" data-layer="sheet" onclick="toggleLayer('sheet')" title="Sheet/modal presentations">Sheet</button>
+                <button class="layer-btn" data-layer="state" onclick="toggleLayer('state')" title="State changes">State</button>
+            </div>
             <div class="filter-divider"></div>
             <button class="toggle-btn" id="unfadeBtn" onclick="toggleUnfade()">Show All</button>
+            <div class="filter-divider"></div>
+            <button class="toggle-btn" id="editModeBtn" onclick="toggleEditMode()">Edit Paths</button>
         </div>
         <div class="header-controls">
             <select class="capture-select" id="captureSelect"></select>
@@ -1269,6 +937,19 @@
     <main class="main" id="main">
         <!-- Content rendered by JS -->
     </main>
+
+    <!-- Edit Mode Info Panel -->
+    <div class="edit-info-panel" id="editInfoPanel">
+        <h3>Selected Connection</h3>
+        <div id="editInfoContent">
+            <div class="info-row">
+                <span class="info-label">Click a connection to select it</span>
+            </div>
+        </div>
+        <div id="editActions" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
+            <button class="toggle-btn" onclick="resetConnectionPath()" style="font-size: 11px;">Reset to Auto</button>
+        </div>
+    </div>
 
     <div class="modal-overlay" id="modal">
         <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -1314,8 +995,8 @@
 
     <script>
         // Injected data
-        const MANIFEST = {"version":"1.1","description":"DinoCodex - Dinosaur Encyclopedia Demo App","changeThreshold":0.5,"screens":{"01-discover-home":{"name":"Discover Home","description":"Featured dinosaurs, search bar, and era quick filters","test":"testScreenshot_01_DiscoverHome","sources":["DinoCodex/Views/Discover/DiscoverHomeView.swift"],"flows_to":["02-discover-search","03-discover-filter","05-species-detail"]},"02-discover-search":{"name":"Discover Search","description":"Search results grid with active filters","test":"testScreenshot_02_DiscoverSearch","sources":["DinoCodex/Views/Discover/DiscoverSearchView.swift"],"flows_to":["05-species-detail","03-discover-filter"]},"03-discover-filter":{"name":"Discover Filter","description":"Filter sheet for era, diet, size, and region","test":"testScreenshot_03_DiscoverFilter","sources":["DinoCodex/Views/Discover/DiscoverFilterView.swift"],"flows_to":["02-discover-search"]},"04-species-list":{"name":"Species List","description":"Alphabetical species list with thumbnails","test":"testScreenshot_04_SpeciesList","sources":["DinoCodex/Views/Species/SpeciesListView.swift"],"flows_to":["05-species-detail"]},"05-species-detail":{"name":"Species Detail","description":"Full dinosaur profile with image, stats, and description","test":"testScreenshot_05_SpeciesDetail","sources":["DinoCodex/Views/Species/SpeciesDetailView.swift"],"flows_to":["06-species-dna","07-species-compare"]},"06-species-dna":{"name":"Species DNA","description":"DNA sequence visualization with helix animation","test":"testScreenshot_06_SpeciesDNA","sources":["DinoCodex/Views/Species/SpeciesDNAView.swift"],"flows_to":["05-species-detail"]},"07-species-compare":{"name":"Species Compare","description":"Side-by-side comparison of two species","test":"testScreenshot_07_SpeciesCompare","sources":["DinoCodex/Views/Species/SpeciesCompareView.swift"],"flows_to":["05-species-detail"]},"08-timeline-eras":{"name":"Timeline Eras","description":"Geological timeline from Triassic to Cretaceous","test":"testScreenshot_08_TimelineEras","sources":["DinoCodex/Views/Timeline/TimelineErasView.swift"],"flows_to":["09-timeline-era-detail"]},"09-timeline-era-detail":{"name":"Timeline Era Detail","description":"Era detail with species from that period","test":"testScreenshot_09_TimelineEraDetail","sources":["DinoCodex/Views/Timeline/TimelineEraDetailView.swift"],"flows_to":["05-species-detail"]},"10-map-fossils":{"name":"Map Fossils","description":"World map with fossil discovery pins","test":"testScreenshot_10_MapFossils","sources":["DinoCodex/Views/Map/MapFossilsView.swift"],"flows_to":["11-map-fossil-detail"]},"11-map-fossil-detail":{"name":"Map Fossil Detail","description":"Fossil site detail sheet","test":"testScreenshot_11_MapFossilDetail","sources":["DinoCodex/Views/Map/MapFossilDetailView.swift"],"flows_to":["05-species-detail"]},"12-collection-favorites":{"name":"Collection Favorites","description":"User's saved dinosaurs","test":"testScreenshot_12_CollectionFavorites","sources":["DinoCodex/Views/Collection/CollectionFavoritesView.swift"],"flows_to":["05-species-detail"]},"13-collection-badges":{"name":"Collection Badges","description":"Achievement badges for discoveries","test":"testScreenshot_13_CollectionBadges","sources":["DinoCodex/Views/Collection/CollectionBadgesView.swift"],"flows_to":[]},"14-settings-main":{"name":"Settings Main","description":"App settings, about, and credits","test":"testScreenshot_14_SettingsMain","sources":["DinoCodex/Views/Settings/SettingsMainView.swift"],"flows_to":[]}},"groups":{"discover":{"name":"Discover","color":"#4CAF50","screens":["01-discover-home","02-discover-search","03-discover-filter"]},"species":{"name":"Species","color":"#2196F3","screens":["04-species-list","05-species-detail","06-species-dna","07-species-compare"]},"timeline":{"name":"Timeline","color":"#FF9800","screens":["08-timeline-eras","09-timeline-era-detail"]},"map":{"name":"Map","color":"#9C27B0","screens":["10-map-fossils","11-map-fossil-detail"]},"collection":{"name":"Collection","color":"#F44336","screens":["12-collection-favorites","13-collection-badges"]},"settings":{"name":"Settings","color":"#607D8B","screens":["14-settings-main"]}}};
-        const INDEX = {"version":"1.0","captures":[{"id":"baseline","commit":"b1e303a","commitFull":"b1e303a40bb7433d809ee9ae98a5b49728b23f25","branch":"main","timestamp":"2025-12-15T18:32:11Z","mode":"baseline","parent":null,"capturedScreens":[],"screenCount":0},{"id":"1cc204d","commit":"1cc204d","commitFull":"1cc204db961222d55b92f6e8f34d2417c7d8201a","branch":"main","timestamp":"2025-12-15T18:49:24Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"b2b1f86","commit":"b2b1f86","commitFull":"b2b1f8634c31c52c41cb4cf52ebf1a8d4e4728fa","branch":"main","timestamp":"2025-12-15T18:53:48Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"50d8599","commit":"50d8599","commitFull":"50d85998e5f4633733e5db721a8cc4407c881b5f","branch":"main","timestamp":"2025-12-15T18:56:28Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"17eb4cc","commit":"17eb4cc","commitFull":"17eb4cca09c8fb183e349fb6b1159f690151d7c4","branch":"main","timestamp":"2025-12-15T18:59:01Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"27d3a0a","commit":"27d3a0a","commitFull":"27d3a0a78b99576b50a3efe2465cded95fabb6ae","branch":"main","timestamp":"2025-12-15T19:01:36Z","mode":"smart","parent":"baseline","screenCount":0},{"id":"6d7d54b","commit":"6d7d54b","commitFull":"6d7d54bdf61e2de9e9a5437b5c638afbdc2b6760","branch":"main","timestamp":"2025-12-15T19:03:21Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"60fdf57","commit":"60fdf57","commitFull":"60fdf573aedb87956b38ac877f2038b753f84c0c","branch":"main","timestamp":"2025-12-15T19:06:33Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"83a9ace","commit":"83a9ace","commitFull":"83a9acebb40dd5c3bb0c59150543bf6d268416f2","branch":"main","timestamp":"2025-12-15T19:09:14Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"cb42201","commit":"cb42201","commitFull":"cb42201701c4d0cb758812feabe9ccc9a02ed0f4","branch":"main","timestamp":"2025-12-15T19:17:18Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"b402b76","commit":"b402b76","commitFull":"b402b76a3519fa0445ebdd02b6cb164cfb6f3345","branch":"main","timestamp":"2025-12-15T19:24:41Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"4239238","commit":"4239238","commitFull":"423923863511cf148a3246fd39b9c21eb0e3b17a","branch":"main","timestamp":"2025-12-15T19:28:35Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"3d9534d","commit":"3d9534d","commitFull":"3d9534d1d13e275616c2840ac864cd5b4d9b6e61","branch":"main","timestamp":"2025-12-15T19:31:40Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"9a49a49","commit":"9a49a49","commitFull":"9a49a496e36fd447dd450d911bab1a6e10aa5b3b","branch":"main","timestamp":"2025-12-15T19:34:44Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"2a4ee68","commit":"2a4ee68","commitFull":"2a4ee68d51e9955f7fa0d80c046fed1768c0482a","branch":"main","timestamp":"2025-12-15T19:38:14Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"3c262e0","commit":"3c262e0","commitFull":"3c262e026663ec6d6f61f1a06eac5f4642b71968","branch":"main","timestamp":"2025-12-15T19:42:50Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"22821cd","commit":"22821cd","commitFull":"22821cd00bf2611c199af271413103e830f04804","branch":"main","timestamp":"2025-12-15T19:45:46Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"5472388","commit":"5472388","commitFull":"547238824d928a0229b43c1ea7f21c5f49b1ef97","branch":"main","timestamp":"2025-12-15T19:51:56Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"6d7ec53","commit":"6d7ec53","commitFull":"6d7ec537f715f7329f2d7b683fc44180e8df5c4c","branch":"main","timestamp":"2025-12-15T19:57:52Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"3825bb3","commit":"3825bb3","commitFull":"3825bb35420df7d4683263029d2b1cf6d571e070","branch":"main","timestamp":"2025-12-15T20:11:28Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"d74a17d","commit":"d74a17d","commitFull":"d74a17dc7374cf5b43e0f0ab55a24e08a0f1b876","branch":"main","timestamp":"2025-12-15T20:15:28Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"6759a90","commit":"6759a90","commitFull":"6759a909066f8d791349f8b03822d4d7c0c05da8","branch":"main","timestamp":"2025-12-15T20:18:24Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"8ec51d2","commit":"8ec51d2","commitFull":"8ec51d2313308bba269fa0f06f90b73aa4e89d4d","branch":"main","timestamp":"2025-12-15T20:22:20Z","mode":"smart","screenCount":14,"parent":"baseline"}],"changeData":{"1cc204d":{"01-discover-home":0.2464,"02-discover-search":0.0423,"03-discover-filter":0.0423,"04-species-list":0,"05-species-detail":0,"06-species-dna":0,"07-species-compare":0,"08-timeline-eras":0.0854,"09-timeline-era-detail":0.0854,"10-map-fossils":0.0854,"11-map-fossil-detail":0.0854,"12-collection-favorites":0.0854,"13-collection-badges":0.0854,"14-settings-main":0.0854},"b2b1f86":{"01-discover-home":0.0212,"02-discover-search":0.0212,"03-discover-filter":0.0212,"04-species-list":0.1855,"05-species-detail":0.0400,"06-species-dna":0.0400,"07-species-compare":0.0400,"08-timeline-eras":0.0717,"09-timeline-era-detail":0.0717,"10-map-fossils":0.0717,"11-map-fossil-detail":0.0717,"12-collection-favorites":0.0717,"13-collection-badges":0.0717,"14-settings-main":0.0717},"50d8599":{"01-discover-home":0.0541,"02-discover-search":0.0541,"03-discover-filter":0.0541,"04-species-list":0.0541,"05-species-detail":0.2482,"06-species-dna":0.0442,"07-species-compare":0.0442,"08-timeline-eras":0.0393,"09-timeline-era-detail":0.0393,"10-map-fossils":0.0393,"11-map-fossil-detail":0.0393,"12-collection-favorites":0.0393,"13-collection-badges":0.0393,"14-settings-main":0.0393},"17eb4cc":{"01-discover-home":0.0824,"02-discover-search":0.0824,"03-discover-filter":0.0824,"04-species-list":0.2467,"05-species-detail":0.2865,"06-species-dna":0.0824,"07-species-compare":0.2865,"08-timeline-eras":0,"09-timeline-era-detail":0,"10-map-fossils":0.0858,"11-map-fossil-detail":0.0908,"12-collection-favorites":0.0908,"13-collection-badges":0.0908,"14-settings-main":0.0908},"27d3a0a":{},"6d7d54b":{},"60fdf57":{"01-discover-home":0.2513,"02-discover-search":0.0472,"03-discover-filter":0.0472,"04-species-list":0.0472,"05-species-detail":0.0472,"06-species-dna":0.0472,"07-species-compare":0.0148,"08-timeline-eras":0.0148,"09-timeline-era-detail":0.0148,"10-map-fossils":0.0148,"11-map-fossil-detail":0.0148,"12-collection-favorites":0,"13-collection-badges":0,"14-settings-main":0.0148},"83a9ace":{"01-discover-home":0.0480,"02-discover-search":0.0547,"03-discover-filter":0.0547,"04-species-list":0.2190,"05-species-detail":0.0547,"06-species-dna":0.0547,"07-species-compare":0.0657,"08-timeline-eras":0.0657,"09-timeline-era-detail":0.0657,"10-map-fossils":0.0684,"11-map-fossil-detail":0.0684,"12-collection-favorites":0.0684,"13-collection-badges":0.0684,"14-settings-main":0.0684},"cb42201":{"01-discover-home":0.2673,"02-discover-search":0.0151,"03-discover-filter":0.0151,"04-species-list":0.1794,"05-species-detail":0.2191,"06-species-dna":0.0151,"07-species-compare":0.0151,"08-timeline-eras":0.0151,"09-timeline-era-detail":0.0123,"10-map-fossils":0.0549,"11-map-fossil-detail":0.0549,"12-collection-favorites":0.0549,"13-collection-badges":0.0549,"14-settings-main":0.0549},"b402b76":{"01-discover-home":9.3480,"02-discover-search":9.3480,"03-discover-filter":9.5499,"04-species-list":9.5631,"05-species-detail":9.5499,"06-species-dna":9.5524,"07-species-compare":9.5524,"08-timeline-eras":0.8613,"09-timeline-era-detail":0.8638,"10-map-fossils":1.3222,"11-map-fossil-detail":1.3222,"12-collection-favorites":9.5551,"13-collection-badges":9.5551,"14-settings-main":9.5550},"4239238":{"01-discover-home":0,"02-discover-search":0,"03-discover-filter":0,"04-species-list":0.1838,"05-species-detail":0.0328,"06-species-dna":0.4119,"07-species-compare":0.0274,"08-timeline-eras":0.0274,"09-timeline-era-detail":0.0274,"10-map-fossils":0.0274,"11-map-fossil-detail":0.0274,"12-collection-favorites":0.0274,"13-collection-badges":0.0274,"14-settings-main":0},"3d9534d":{"01-discover-home":0.0410,"02-discover-search":0.0410,"03-discover-filter":0.0410,"04-species-list":0,"05-species-detail":0,"06-species-dna":0,"07-species-compare":0,"08-timeline-eras":0.0149,"09-timeline-era-detail":0.0149,"10-map-fossils":0.0149,"11-map-fossil-detail":0.0149,"12-collection-favorites":0.0149,"13-collection-badges":0.0149,"14-settings-main":0.0149},"9a49a49":{"01-discover-home":0.0185,"02-discover-search":0.0185,"03-discover-filter":0.0373,"04-species-list":0.0373,"05-species-detail":0.0153,"06-species-dna":0.0153,"07-species-compare":0.0153,"08-timeline-eras":0.0153,"09-timeline-era-detail":0.0153,"10-map-fossils":0.0153,"11-map-fossil-detail":0.0153,"12-collection-favorites":0.0418,"13-collection-badges":0.0418,"14-settings-main":0.0418},"2a4ee68":{"01-discover-home":0.0451,"02-discover-search":0.0451,"03-discover-filter":0.0345,"04-species-list":0.0345,"05-species-detail":0.0345,"06-species-dna":0.0345,"07-species-compare":0.0655,"08-timeline-eras":0.0655,"09-timeline-era-detail":0.0655,"10-map-fossils":0.0655,"11-map-fossil-detail":0.0655,"12-collection-favorites":0.0478,"13-collection-badges":0.0478,"14-settings-main":0.0478},"3c262e0":{"01-discover-home":0.0149,"02-discover-search":0.0149,"03-discover-filter":0.0149,"04-species-list":0.0149,"05-species-detail":0.0149,"06-species-dna":0.0379,"07-species-compare":0.0613,"08-timeline-eras":0,"09-timeline-era-detail":0,"10-map-fossils":0.0613,"11-map-fossil-detail":0.0613,"12-collection-favorites":0.0613,"13-collection-badges":0.0613,"14-settings-main":0.0613},"22821cd":{"01-discover-home":0.0306,"02-discover-search":0.0306,"03-discover-filter":0.0306,"04-species-list":0.0340,"05-species-detail":0.0340,"06-species-dna":0.0436,"07-species-compare":0.0436,"08-timeline-eras":0.0436,"09-timeline-era-detail":0.0436,"10-map-fossils":5.0906,"11-map-fossil-detail":5.0906,"12-collection-favorites":0.0436,"13-collection-badges":0.0215,"14-settings-main":0.0215},"5472388":{"01-discover-home":0.0524,"02-discover-search":0.0524,"03-discover-filter":0.0524,"04-species-list":0.0471,"05-species-detail":0.0471,"06-species-dna":0.0471,"07-species-compare":0.0471,"08-timeline-eras":0.0471,"09-timeline-era-detail":0.0471,"10-map-fossils":0.0471,"11-map-fossil-detail":0.0501,"12-collection-favorites":8.6525,"13-collection-badges":8.6535,"14-settings-main":0.0511},"6d7ec53":{"01-discover-home":0.0342,"02-discover-search":0.0342,"03-discover-filter":0.0342,"04-species-list":0.0147,"05-species-detail":0.0147,"06-species-dna":0.0147,"07-species-compare":0.0147,"08-timeline-eras":0.0147,"09-timeline-era-detail":0.0147,"10-map-fossils":0.0147,"11-map-fossil-detail":0.0239,"12-collection-favorites":0.0239,"13-collection-badges":0.0239,"14-settings-main":0.0650},"3825bb3":{"01-discover-home":0.0601,"02-discover-search":0.0601,"03-discover-filter":0.0601,"04-species-list":5.5959,"05-species-detail":5.5959,"06-species-dna":5.5959,"07-species-compare":5.5959,"08-timeline-eras":0.0580,"09-timeline-era-detail":0.0580,"10-map-fossils":0.0580,"11-map-fossil-detail":0.2603,"12-collection-favorites":0.0580,"13-collection-badges":0.0676,"14-settings-main":0.0667},"d74a17d":{"01-discover-home":15.6801,"02-discover-search":15.6801,"03-discover-filter":15.6801,"04-species-list":0.0355,"05-species-detail":0.0355,"06-species-dna":0.0355,"07-species-compare":0.0355,"08-timeline-eras":0.0153,"09-timeline-era-detail":0.0153,"10-map-fossils":0.0338,"11-map-fossil-detail":0.2361,"12-collection-favorites":0.0338,"13-collection-badges":0.0426,"14-settings-main":15.6872},"6759a90":{"01-discover-home":0.0581,"02-discover-search":0.0581,"03-discover-filter":0.0581,"04-species-list":0.0581,"05-species-detail":0.0581,"06-species-dna":0.0581,"07-species-compare":0.0388,"08-timeline-eras":0.0388,"09-timeline-era-detail":0.0388,"10-map-fossils":0.0426,"11-map-fossil-detail":0.0426,"12-collection-favorites":0,"13-collection-badges":0,"14-settings-main":0.0426},"8ec51d2":{"01-discover-home":0.0149,"02-discover-search":0.0149,"03-discover-filter":0.0149,"04-species-list":0.0214,"05-species-detail":0.0214,"06-species-dna":0.0214,"07-species-compare":0.0543,"08-timeline-eras":0.0543,"09-timeline-era-detail":0.0543,"10-map-fossils":0.0543,"11-map-fossil-detail":0.0503,"12-collection-favorites":0.0503,"13-collection-badges":0.0503,"14-settings-main":0.0503}},"sourceChanges":{"1cc204d":["04-species-list"],"b2b1f86":["05-species-detail"],"50d8599":["06-species-dna"],"17eb4cc":["08-timeline-eras"],"27d3a0a":[],"6d7d54b":["10-map-fossils"],"60fdf57":["12-collection-favorites"],"83a9ace":["14-settings-main"],"cb42201":["07-species-compare","09-timeline-era-detail","11-map-fossil-detail","13-collection-badges"],"b402b76":[],"4239238":["01-discover-home"],"3d9534d":["01-discover-home","04-species-list"],"9a49a49":["05-species-detail"],"2a4ee68":["06-species-dna"],"3c262e0":["08-timeline-eras"],"22821cd":["10-map-fossils"],"5472388":["12-collection-favorites"],"6d7ec53":["14-settings-main"],"3825bb3":["04-species-list"],"d74a17d":["01-discover-home"],"6759a90":["12-collection-favorites"],"8ec51d2":[]}};
+        const MANIFEST = {"version":"1.2","description":"DinoCodex - Dinosaur Encyclopedia Demo App","changeThreshold":0.5,"screens":{"01-discover-home":{"name":"Discover Home","description":"Featured dinosaurs, search bar, and era quick filters","test":"testScreenshot_01_DiscoverHome","sources":["DinoCodex/Views/Discover/DiscoverHomeView.swift"],"flows_to":[{"target":"02-discover-search","element":"discover_search_bar","type":"navigation"},{"target":"03-discover-filter","element":"discover_filter_button","type":"sheet"},{"target":"05-species-detail","element":"discover_featured_card","type":"navigation"}]},"02-discover-search":{"name":"Discover Search","description":"Search results grid with active filters","test":"testScreenshot_02_DiscoverSearch","sources":["DinoCodex/Views/Discover/DiscoverSearchView.swift"],"flows_to":["05-species-detail","03-discover-filter"]},"03-discover-filter":{"name":"Discover Filter","description":"Filter sheet for era, diet, size, and region","test":"testScreenshot_03_DiscoverFilter","sources":["DinoCodex/Views/Discover/DiscoverFilterView.swift"],"flows_to":["02-discover-search"]},"04-species-list":{"name":"Species List","description":"Alphabetical species list with thumbnails","test":"testScreenshot_04_SpeciesList","sources":["DinoCodex/Views/Species/SpeciesListView.swift"],"flows_to":["05-species-detail"]},"05-species-detail":{"name":"Species Detail","description":"Full dinosaur profile with image, stats, and description","test":"testScreenshot_05_SpeciesDetail","sources":["DinoCodex/Views/Species/SpeciesDetailView.swift"],"flows_to":["06-species-dna","07-species-compare"]},"06-species-dna":{"name":"Species DNA","description":"DNA sequence visualization with helix animation","test":"testScreenshot_06_SpeciesDNA","sources":["DinoCodex/Views/Species/SpeciesDNAView.swift"],"flows_to":["05-species-detail"]},"07-species-compare":{"name":"Species Compare","description":"Side-by-side comparison of two species","test":"testScreenshot_07_SpeciesCompare","sources":["DinoCodex/Views/Species/SpeciesCompareView.swift"],"flows_to":["05-species-detail"]},"08-timeline-eras":{"name":"Timeline Eras","description":"Geological timeline from Triassic to Cretaceous","test":"testScreenshot_08_TimelineEras","sources":["DinoCodex/Views/Timeline/TimelineErasView.swift"],"flows_to":["09-timeline-era-detail"]},"09-timeline-era-detail":{"name":"Timeline Era Detail","description":"Era detail with species from that period","test":"testScreenshot_09_TimelineEraDetail","sources":["DinoCodex/Views/Timeline/TimelineEraDetailView.swift"],"flows_to":["05-species-detail"]},"10-map-fossils":{"name":"Map Fossils","description":"World map with fossil discovery pins","test":"testScreenshot_10_MapFossils","sources":["DinoCodex/Views/Map/MapFossilsView.swift"],"flows_to":["11-map-fossil-detail"]},"11-map-fossil-detail":{"name":"Map Fossil Detail","description":"Fossil site detail sheet","test":"testScreenshot_11_MapFossilDetail","sources":["DinoCodex/Views/Map/MapFossilDetailView.swift"],"flows_to":["05-species-detail"]},"12-collection-favorites":{"name":"Collection Favorites","description":"User's saved dinosaurs","test":"testScreenshot_12_CollectionFavorites","sources":["DinoCodex/Views/Collection/CollectionFavoritesView.swift"],"flows_to":["05-species-detail"]},"13-collection-badges":{"name":"Collection Badges","description":"Achievement badges for discoveries","test":"testScreenshot_13_CollectionBadges","sources":["DinoCodex/Views/Collection/CollectionBadgesView.swift"],"flows_to":[]},"14-settings-main":{"name":"Settings Main","description":"App settings, about, and credits","test":"testScreenshot_14_SettingsMain","sources":["DinoCodex/Views/Settings/SettingsMainView.swift"],"flows_to":[]}},"groups":{"discover":{"name":"Discover","color":"#4CAF50","screens":["01-discover-home","02-discover-search","03-discover-filter"]},"species":{"name":"Species","color":"#2196F3","screens":["04-species-list","05-species-detail","06-species-dna","07-species-compare"]},"timeline":{"name":"Timeline","color":"#FF9800","screens":["08-timeline-eras","09-timeline-era-detail"]},"map":{"name":"Map","color":"#9C27B0","screens":["10-map-fossils","11-map-fossil-detail"]},"collection":{"name":"Collection","color":"#F44336","screens":["12-collection-favorites","13-collection-badges"]},"settings":{"name":"Settings","color":"#607D8B","screens":["14-settings-main"]}}};
+        const INDEX = {"version":"1.0","captures":[{"id":"baseline","commit":"b1e303a","commitFull":"b1e303a40bb7433d809ee9ae98a5b49728b23f25","branch":"main","timestamp":"2025-12-15T18:32:11Z","mode":"baseline","parent":null,"capturedScreens":[],"screenCount":0},{"id":"1cc204d","commit":"1cc204d","commitFull":"1cc204db961222d55b92f6e8f34d2417c7d8201a","branch":"main","timestamp":"2025-12-15T18:49:24Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"b2b1f86","commit":"b2b1f86","commitFull":"b2b1f8634c31c52c41cb4cf52ebf1a8d4e4728fa","branch":"main","timestamp":"2025-12-15T18:53:48Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"50d8599","commit":"50d8599","commitFull":"50d85998e5f4633733e5db721a8cc4407c881b5f","branch":"main","timestamp":"2025-12-15T18:56:28Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"17eb4cc","commit":"17eb4cc","commitFull":"17eb4cca09c8fb183e349fb6b1159f690151d7c4","branch":"main","timestamp":"2025-12-15T18:59:01Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"27d3a0a","commit":"27d3a0a","commitFull":"27d3a0a78b99576b50a3efe2465cded95fabb6ae","branch":"main","timestamp":"2025-12-15T19:01:36Z","mode":"smart","parent":"baseline","screenCount":0},{"id":"6d7d54b","commit":"6d7d54b","commitFull":"6d7d54bdf61e2de9e9a5437b5c638afbdc2b6760","branch":"main","timestamp":"2025-12-15T19:03:21Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"60fdf57","commit":"60fdf57","commitFull":"60fdf573aedb87956b38ac877f2038b753f84c0c","branch":"main","timestamp":"2025-12-15T19:06:33Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"83a9ace","commit":"83a9ace","commitFull":"83a9acebb40dd5c3bb0c59150543bf6d268416f2","branch":"main","timestamp":"2025-12-15T19:09:14Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"cb42201","commit":"cb42201","commitFull":"cb42201701c4d0cb758812feabe9ccc9a02ed0f4","branch":"main","timestamp":"2025-12-15T19:17:18Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"b402b76","commit":"b402b76","commitFull":"b402b76a3519fa0445ebdd02b6cb164cfb6f3345","branch":"main","timestamp":"2025-12-15T19:24:41Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"4239238","commit":"4239238","commitFull":"423923863511cf148a3246fd39b9c21eb0e3b17a","branch":"main","timestamp":"2025-12-15T19:28:35Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"3d9534d","commit":"3d9534d","commitFull":"3d9534d1d13e275616c2840ac864cd5b4d9b6e61","branch":"main","timestamp":"2025-12-15T19:31:40Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"9a49a49","commit":"9a49a49","commitFull":"9a49a496e36fd447dd450d911bab1a6e10aa5b3b","branch":"main","timestamp":"2025-12-15T19:34:44Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"2a4ee68","commit":"2a4ee68","commitFull":"2a4ee68d51e9955f7fa0d80c046fed1768c0482a","branch":"main","timestamp":"2025-12-15T19:38:14Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"3c262e0","commit":"3c262e0","commitFull":"3c262e026663ec6d6f61f1a06eac5f4642b71968","branch":"main","timestamp":"2025-12-15T19:42:50Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"22821cd","commit":"22821cd","commitFull":"22821cd00bf2611c199af271413103e830f04804","branch":"main","timestamp":"2025-12-15T19:45:46Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"5472388","commit":"5472388","commitFull":"547238824d928a0229b43c1ea7f21c5f49b1ef97","branch":"main","timestamp":"2025-12-15T19:51:56Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"6d7ec53","commit":"6d7ec53","commitFull":"6d7ec537f715f7329f2d7b683fc44180e8df5c4c","branch":"main","timestamp":"2025-12-15T19:57:52Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"3825bb3","commit":"3825bb3","commitFull":"3825bb35420df7d4683263029d2b1cf6d571e070","branch":"main","timestamp":"2025-12-15T20:11:28Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"d74a17d","commit":"d74a17d","commitFull":"d74a17dc7374cf5b43e0f0ab55a24e08a0f1b876","branch":"main","timestamp":"2025-12-15T20:15:28Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"6759a90","commit":"6759a90","commitFull":"6759a909066f8d791349f8b03822d4d7c0c05da8","branch":"main","timestamp":"2025-12-15T20:18:24Z","mode":"smart","screenCount":14,"parent":"baseline"},{"id":"8ec51d2","commit":"8ec51d2","commitFull":"8ec51d2313308bba269fa0f06f90b73aa4e89d4d","branch":"main","timestamp":"2025-12-15T20:22:20Z","mode":"smart","screenCount":14,"parent":"baseline"}],"changeData":{"1cc204d":{},"b2b1f86":{},"50d8599":{},"17eb4cc":{},"27d3a0a":{},"6d7d54b":{},"60fdf57":{},"83a9ace":{},"cb42201":{},"b402b76":{},"4239238":{},"3d9534d":{},"9a49a49":{},"2a4ee68":{},"3c262e0":{},"22821cd":{},"5472388":{},"6d7ec53":{},"3825bb3":{},"d74a17d":{},"6759a90":{},"8ec51d2":{}},"sourceChanges":{"1cc204d":[],"b2b1f86":[],"50d8599":[],"17eb4cc":[],"27d3a0a":[],"6d7d54b":[],"60fdf57":[],"83a9ace":[],"cb42201":[],"b402b76":[],"4239238":[],"3d9534d":[],"9a49a49":[],"2a4ee68":[],"3c262e0":[],"22821cd":[],"5472388":[],"6d7ec53":[],"3825bb3":[],"d74a17d":[],"6759a90":[],"8ec51d2":[]}};
         const CAPTURES_DIR = "captures";
 
         // State
@@ -1325,18 +1006,13 @@
         let timelinePosition = 0;
         let isPlaying = false;
 
-        // Timelapse filter state
-        let timelapseShowAll = false; // Default to changes-only mode
-        let timelapseFilteredCaptures = []; // Filtered list of captures
-        let manualChangedCommits = new Set(); // Manually marked as changed
-
         // Evolution state
         let currentModalScreen = null;
         let evolutionCaptures = [];
         let evolutionIdx = 0;
         let evolutionIsPlaying = false;
         let evolutionTimer = null;
-        let evolutionShowAll = false; // Default to changes-only mode
+        let evolutionShowAll = false;
 
         // Mini-map panning state
         let miniMapPanX = 0;
@@ -1361,8 +1037,88 @@
         // Screen positions for map
         const screenPositions = {};
 
+        // Element coordinates per capture: { captureId: { screenId: { elementId: {x,y,w,h} } } }
+        const elementCoordsCache = {};
+
+        // Device dimensions per capture for coordinate scaling
+        const deviceDimensionsCache = {};
+
         // Cache for tracking which screens exist in each capture
         const captureScreensCache = {};
+
+        // Helper: Parse a flows_to entry (handles both string and object formats)
+        function parseFlowTarget(flowEntry) {
+            if (typeof flowEntry === 'string') {
+                return { target: flowEntry, element: null, type: 'navigation' };
+            }
+            return {
+                target: flowEntry.target,
+                element: flowEntry.element || null,
+                type: flowEntry.type || 'navigation'
+            };
+        }
+
+        // Helper: Get all flows from a screen (normalized format)
+        function getScreenFlows(screen) {
+            if (!screen.flows_to) return [];
+            return screen.flows_to.map(parseFlowTarget);
+        }
+
+        // Load element coordinates for a capture (async, caches result)
+        async function loadElementCoordinates(captureId, screenId) {
+            const cacheKey = `${captureId}:${screenId}`;
+            if (elementCoordsCache[cacheKey] !== undefined) {
+                return elementCoordsCache[cacheKey];
+            }
+
+            try {
+                const url = `${CAPTURES_DIR}/${captureId}/${screenId}_elements.json`;
+                const response = await fetch(url);
+                if (!response.ok) {
+                    elementCoordsCache[cacheKey] = null;
+                    return null;
+                }
+                const data = await response.json();
+                elementCoordsCache[cacheKey] = data.elements || {};
+
+                // Cache device dimensions for scaling
+                if (data.device) {
+                    deviceDimensionsCache[cacheKey] = data.device;
+                }
+
+                return elementCoordsCache[cacheKey];
+            } catch (e) {
+                elementCoordsCache[cacheKey] = null;
+                return null;
+            }
+        }
+
+        // Get element coordinates for an element on a screen (sync, from cache)
+        function getElementCoords(captureId, screenId, elementId) {
+            const cacheKey = `${captureId}:${screenId}`;
+            const coords = elementCoordsCache[cacheKey];
+            if (!coords || !coords[elementId]) return null;
+            return coords[elementId];
+        }
+
+        // Get device dimensions for coordinate scaling
+        function getDeviceDimensions(captureId, screenId) {
+            const cacheKey = `${captureId}:${screenId}`;
+            return deviceDimensionsCache[cacheKey] || { width: 393, height: 852, scale: 3 };
+        }
+
+        // Preload element coordinates for all screens in a capture
+        async function preloadElementCoordinates(captureId) {
+            if (!captureId) return;
+
+            const promises = [];
+            for (const screenId of Object.keys(MANIFEST.screens)) {
+                promises.push(loadElementCoordinates(captureId, screenId));
+            }
+
+            // Load all in parallel, ignore failures (missing files are OK)
+            await Promise.allSettled(promises);
+        }
 
         // Filter state
         let activeGroups = new Set(); // empty = all groups shown
@@ -1370,6 +1126,136 @@
         let showFlows = true;
         let showAllScreens = false; // when true, don't fade unchanged screens
         let layoutDirection = 'vertical'; // 'horizontal' or 'vertical'
+
+        // Layer filter state (which flow types to show)
+        let activeLayers = new Set(['navigation', 'sheet']); // default: nav and sheet visible
+
+        function toggleLayer(layerType) {
+            const btn = document.querySelector(`.layer-btn[data-layer="${layerType}"]`);
+            if (activeLayers.has(layerType)) {
+                activeLayers.delete(layerType);
+                btn.classList.remove('active');
+            } else {
+                activeLayers.add(layerType);
+                btn.classList.add('active');
+            }
+            applyLayerFilter();
+        }
+
+        function applyLayerFilter() {
+            document.querySelectorAll('.connection, .connection-arrow').forEach(el => {
+                const flowType = el.dataset.flowType || 'navigation';
+                const shouldShow = showFlows && activeLayers.has(flowType);
+                el.classList.toggle('hidden', !shouldShow);
+            });
+        }
+
+        // Edit Mode state
+        let editMode = false;
+        let selectedConnection = null;
+        let pathOverrides = {}; // { "from::to": { waypoints: [...] } }
+
+        function toggleEditMode() {
+            editMode = !editMode;
+            document.body.classList.toggle('edit-mode', editMode);
+            document.getElementById('editModeBtn').classList.toggle('active', editMode);
+
+            if (editMode) {
+                setupConnectionClickHandlers();
+                updateEditInfoPanel(null);
+            } else {
+                clearConnectionSelection();
+            }
+        }
+
+        function setupConnectionClickHandlers() {
+            document.querySelectorAll('.connection').forEach(path => {
+                path.addEventListener('click', handleConnectionClick);
+            });
+        }
+
+        function handleConnectionClick(e) {
+            e.stopPropagation();
+            const path = e.target;
+            const from = path.dataset.from;
+            const to = path.dataset.to;
+
+            // Clear previous selection
+            clearConnectionSelection();
+
+            // Select this connection
+            path.classList.add('selected');
+            selectedConnection = { from, to, element: path };
+
+            // Update info panel
+            updateEditInfoPanel(selectedConnection);
+        }
+
+        function clearConnectionSelection() {
+            document.querySelectorAll('.connection.selected').forEach(el => {
+                el.classList.remove('selected');
+            });
+            selectedConnection = null;
+            updateEditInfoPanel(null);
+        }
+
+        function updateEditInfoPanel(conn) {
+            const content = document.getElementById('editInfoContent');
+            const actions = document.getElementById('editActions');
+
+            if (!conn) {
+                content.innerHTML = `
+                    <div class="info-row">
+                        <span class="info-label">Click a connection to select it</span>
+                    </div>
+                `;
+                actions.style.display = 'none';
+                return;
+            }
+
+            const fromScreen = MANIFEST.screens[conn.from];
+            const toScreen = MANIFEST.screens[conn.to];
+            const flowType = conn.element.dataset.flowType || 'navigation';
+            const elemId = conn.element.dataset.element || 'none';
+            const hasElement = conn.element.classList.contains('has-element');
+
+            content.innerHTML = `
+                <div class="info-row">
+                    <span class="info-label">From</span>
+                    <span class="info-value">${fromScreen?.name || conn.from}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">To</span>
+                    <span class="info-value">${toScreen?.name || conn.to}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Type</span>
+                    <span class="info-value">${flowType}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Element</span>
+                    <span class="info-value" style="color: ${hasElement ? 'var(--accent-green)' : 'var(--text-muted)'}">${elemId}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Status</span>
+                    <span class="info-value">${hasElement ? 'Coordinates found' : 'Using fallback position'}</span>
+                </div>
+            `;
+            actions.style.display = 'block';
+        }
+
+        function resetConnectionPath() {
+            if (!selectedConnection) return;
+
+            const key = `${selectedConnection.from}::${selectedConnection.to}`;
+            delete pathOverrides[key];
+
+            // Re-render connections to apply reset
+            renderMapConnections();
+
+            // Re-select after re-render
+            setupConnectionClickHandlers();
+        }
 
         function init() {
             populateCaptureSelects();
@@ -1515,9 +1401,12 @@
             showFlows = !showFlows;
             const btn = document.getElementById('showFlowsBtn');
             btn.classList.toggle('active', showFlows);
-            document.querySelectorAll('.connection, .connection-arrow').forEach(el => {
-                el.classList.toggle('hidden', !showFlows);
-            });
+            // Show/hide layer toggles based on flows visibility
+            const layerToggles = document.getElementById('layerToggles');
+            if (layerToggles) {
+                layerToggles.style.display = showFlows ? 'inline-flex' : 'none';
+            }
+            applyLayerFilter();
         }
 
         function setLayout(direction) {
@@ -1667,19 +1556,15 @@
             const captures = INDEX.captures || [];
             const screens = Object.entries(MANIFEST.screens);
 
-            // Build filtered captures list
-            buildTimelapseFilteredCaptures();
-
             container.innerHTML = `
                 <div class="filters">
-                    <span class="filter-label">Commits</span>
-                    <div class="timelapse-filter-btns">
-                        <button id="timelapseChangesBtn" class="${!timelapseShowAll ? 'active' : ''}" onclick="setTimelapseFilter(false)">Changes</button>
-                        <button id="timelapseAllBtn" class="${timelapseShowAll ? 'active' : ''}" onclick="setTimelapseFilter(true)">All</button>
-                    </div>
-                    <span class="timelapse-counter" id="timelapseCounter"></span>
+                    <span class="filter-label">Highlight changes</span>
+                    <label class="filter-toggle">
+                        <input type="checkbox" id="fadeUnchanged" checked onchange="updateTimelapse()">
+                        Fade unchanged
+                    </label>
                 </div>
-                <div class="view-single" style="padding-bottom: 160px;">
+                <div class="view-single" style="padding-bottom: 120px;">
                     <div class="screen-grid" id="timelapseGrid">
                         ${screens.map(([id, screen]) => `
                             <div class="screen-card" data-id="${id}" onclick="openModal('${id}')">
@@ -1695,44 +1580,28 @@
                 </div>
                 <div class="timelapse-controls">
                     <input type="range" class="timeline-slider" id="timelineSlider"
-                           min="0" max="${timelapseFilteredCaptures.length - 1}" value="0"
+                           min="0" max="${captures.length - 1}" value="${captures.length - 1}"
                            oninput="updateTimelapse()">
                     <div class="timeline-info">
                         <span id="timelineDate"></span>
                         <span class="timeline-commit" id="timelineCommit"></span>
-                        <button class="play-btn" id="timelapsePlayBtn" onclick="togglePlay()">▶ Play</button>
+                        <button class="play-btn" onclick="togglePlay()">${isPlaying ? '⏸ Pause' : '▶ Play'}</button>
                     </div>
-                    <div class="commit-list" id="commitList"></div>
                 </div>
             `;
-            renderCommitList();
             updateTimelapse();
-            // Auto-play from beginning after a short delay
-            setTimeout(() => {
-                isPlaying = true;
-                updatePlayButton();
-                playTimelapse();
-            }, 500);
         }
 
         function updateTimelapse() {
             const slider = document.getElementById('timelineSlider');
-            if (!slider) return;
-
+            const captures = INDEX.captures || [];
             const idx = parseInt(slider.value);
-            const capture = timelapseFilteredCaptures[idx];
+            const capture = captures[idx];
 
             if (!capture) return;
 
             document.getElementById('timelineDate').textContent = new Date(capture.timestamp).toLocaleDateString();
             document.getElementById('timelineCommit').textContent = capture.commit;
-
-            // Update counter
-            const counter = document.getElementById('timelapseCounter');
-            if (counter) {
-                const totalChanges = getChangedCommitIds().size;
-                counter.textContent = `${idx + 1} / ${timelapseFilteredCaptures.length} (${totalChanges} changes)`;
-            }
 
             // Update images
             document.querySelectorAll('#timelapseGrid img[data-screen]').forEach(img => {
@@ -1740,32 +1609,25 @@
                 img.src = `${CAPTURES_DIR}/${capture.id}/${screenId}.png`;
             });
 
-            // Highlight active commit in list
-            document.querySelectorAll('.commit-item').forEach((item, i) => {
-                item.classList.toggle('active', i === idx);
-            });
+            // Fade unchanged if enabled
+            const fadeUnchanged = document.getElementById('fadeUnchanged')?.checked;
+            if (fadeUnchanged && idx > 0) {
+                const prevCapture = captures[idx - 1];
+                // In real implementation, we'd compare actual files
+                // For now, just show all
+            }
         }
 
         function togglePlay() {
             isPlaying = !isPlaying;
-            updatePlayButton();
             if (isPlaying) {
                 playTimelapse();
-            }
-        }
-
-        function updatePlayButton() {
-            const btn = document.getElementById('timelapsePlayBtn');
-            if (btn) {
-                btn.textContent = isPlaying ? '⏸ Pause' : '▶ Play';
             }
         }
 
         function playTimelapse() {
             if (!isPlaying) return;
             const slider = document.getElementById('timelineSlider');
-            if (!slider) return;
-
             const max = parseInt(slider.max);
             let val = parseInt(slider.value);
 
@@ -1775,124 +1637,12 @@
                 setTimeout(playTimelapse, 1000);
             } else {
                 isPlaying = false;
-                updatePlayButton();
             }
-        }
-
-        // Get set of commit IDs that have meaningful changes
-        function getChangedCommitIds() {
-            const threshold = MANIFEST.changeThreshold || 0.5;
-            const changedIds = new Set();
-            const allCaptures = INDEX.captures.filter(c => c.screenCount > 0);
-
-            allCaptures.forEach((capture, idx) => {
-                if (idx === 0) return; // First is baseline
-                const changeData = INDEX.changeData?.[capture.id] || {};
-                // Check if ANY screen changed above threshold
-                const hasChange = Object.values(changeData).some(pct => pct > threshold);
-                if (hasChange || manualChangedCommits.has(capture.id)) {
-                    changedIds.add(capture.id);
-                }
-            });
-
-            // Also include manually marked commits
-            manualChangedCommits.forEach(id => changedIds.add(id));
-
-            return changedIds;
-        }
-
-        function buildTimelapseFilteredCaptures() {
-            const allCaptures = INDEX.captures.filter(c => c.screenCount > 0);
-            const changedIds = getChangedCommitIds();
-
-            if (timelapseShowAll) {
-                timelapseFilteredCaptures = allCaptures;
-            } else {
-                // Changes only: baseline + changed captures
-                timelapseFilteredCaptures = allCaptures.filter((c, idx) =>
-                    idx === 0 || changedIds.has(c.id)
-                );
-            }
-        }
-
-        function setTimelapseFilter(showAll) {
-            timelapseShowAll = showAll;
-            document.getElementById('timelapseChangesBtn')?.classList.toggle('active', !showAll);
-            document.getElementById('timelapseAllBtn')?.classList.toggle('active', showAll);
-
-            // Rebuild filtered list
-            buildTimelapseFilteredCaptures();
-
-            // Update slider
-            const slider = document.getElementById('timelineSlider');
-            if (slider) {
-                slider.max = timelapseFilteredCaptures.length - 1;
-                slider.value = 0;
-            }
-
-            renderCommitList();
-            updateTimelapse();
-        }
-
-        function renderCommitList() {
-            const commitList = document.getElementById('commitList');
-            if (!commitList) return;
-
-            const changedIds = getChangedCommitIds();
-
-            commitList.innerHTML = timelapseFilteredCaptures.map((capture, idx) => {
-                const isChanged = changedIds.has(capture.id) || manualChangedCommits.has(capture.id);
-                const isChecked = manualChangedCommits.has(capture.id);
-                return `
-                    <div class="commit-item ${isChanged ? 'changed' : ''}" onclick="jumpToCommit(${idx})">
-                        <input type="checkbox" ${isChecked ? 'checked' : ''}
-                               onclick="event.stopPropagation(); toggleManualChange('${capture.id}', this.checked)"
-                               title="Mark as changed">
-                        <span>${capture.commit}</span>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function jumpToCommit(idx) {
-            const slider = document.getElementById('timelineSlider');
-            if (slider) {
-                slider.value = idx;
-                updateTimelapse();
-            }
-        }
-
-        function toggleManualChange(captureId, isChecked) {
-            if (isChecked) {
-                manualChangedCommits.add(captureId);
-            } else {
-                manualChangedCommits.delete(captureId);
-            }
-
-            // Debug output for user to copy
-            const commitArray = Array.from(manualChangedCommits);
-            console.log('Manual changed commits:', JSON.stringify(commitArray));
-            console.log('To set as default, update manualChangedCommits initialization:');
-            console.log(`let manualChangedCommits = new Set(${JSON.stringify(commitArray)});`);
-
-            // Re-render if we're in changes-only mode
-            if (!timelapseShowAll) {
-                buildTimelapseFilteredCaptures();
-                const slider = document.getElementById('timelineSlider');
-                if (slider) {
-                    slider.max = timelapseFilteredCaptures.length - 1;
-                }
-                renderCommitList();
-            } else {
-                // Just update visual state
-                renderCommitList();
-            }
-            updateTimelapse();
         }
 
         function renderMapView(container) {
             const captures = INDEX.captures || [];
-            mapTimelineIdx = 0; // Start at beginning
+            mapTimelineIdx = captures.length - 1; // Start at latest
             layoutScreensForMap();
 
             container.innerHTML = `
@@ -1934,7 +1684,17 @@
             `;
 
             renderMapScreens();
-            renderMapConnections();
+
+            // Preload element coordinates for current capture, then render connections
+            const currentCapture = captures[mapTimelineIdx] || captures[captures.length - 1];
+            if (currentCapture) {
+                preloadElementCoordinates(currentCapture.id).then(() => {
+                    renderMapConnections();
+                });
+            } else {
+                renderMapConnections();
+            }
+
             setupMapControls();
 
             // Set responsive initial scale and position based on viewport
@@ -1955,17 +1715,6 @@
 
             updateMapTransform();
             updateMapTimeline();
-
-            // Auto-play from beginning after a short delay
-            setTimeout(() => {
-                mapIsPlaying = true;
-                const btn = document.getElementById('mapPlayBtn');
-                if (btn) {
-                    btn.innerHTML = '⏸ Pause';
-                    btn.classList.add('active');
-                }
-                mapPlayLoop();
-            }, 500);
         }
 
         function layoutScreensForMap() {
@@ -1974,25 +1723,21 @@
             let SCREEN_WIDTH, SCREEN_HEIGHT, H_PADDING, V_PADDING;
 
             if (viewportWidth <= 390) {
-                // Extra small (iPhone SE)
                 SCREEN_WIDTH = 90;
                 SCREEN_HEIGHT = 150;
                 H_PADDING = 30;
                 V_PADDING = 50;
             } else if (viewportWidth <= 480) {
-                // Small phones
                 SCREEN_WIDTH = 100;
                 SCREEN_HEIGHT = 170;
                 H_PADDING = 40;
                 V_PADDING = 60;
             } else if (viewportWidth <= 768) {
-                // Tablets/large phones
                 SCREEN_WIDTH = 120;
                 SCREEN_HEIGHT = 200;
                 H_PADDING = 50;
                 V_PADDING = 80;
             } else {
-                // Desktop
                 SCREEN_WIDTH = 280;
                 SCREEN_HEIGHT = 600;
                 H_PADDING = 80;
@@ -2175,16 +1920,28 @@
             svg.setAttribute('width', maxX + 400);
             svg.setAttribute('height', maxY + 400);
 
+            // Get current capture for element coordinates
+            const captures = INDEX.captures || [];
+            const currentCapture = captures[mapTimelineIdx] || captures[captures.length - 1];
+            const captureId = currentCapture ? currentCapture.id : null;
+
             // Build connection map to detect bi-directional flows
+            // Now uses parseFlowTarget for element-aware flows
             const flowMap = {};
             for (const [screenId, screen] of Object.entries(MANIFEST.screens)) {
-                if (!screen.flows_to) continue;
-                for (const targetId of screen.flows_to) {
+                const flows = getScreenFlows(screen);
+                for (const flow of flows) {
+                    const targetId = flow.target;
                     const key = [screenId, targetId].sort().join('::');
                     if (!flowMap[key]) {
                         flowMap[key] = { screens: [screenId, targetId].sort(), directions: [] };
                     }
-                    flowMap[key].directions.push({ from: screenId, to: targetId });
+                    flowMap[key].directions.push({
+                        from: screenId,
+                        to: targetId,
+                        element: flow.element,
+                        type: flow.type
+                    });
                 }
             }
 
@@ -2210,12 +1967,19 @@
                 const fromPos = aIsHigher ? posA : posB;
                 const toPos = aIsHigher ? posB : posA;
 
+                // Find the flow direction info for the from->to direction
+                const forwardFlow = flow.directions.find(d => d.from === fromScreen && d.to === toScreen);
+                const reverseFlow = flow.directions.find(d => d.from === toScreen && d.to === fromScreen);
+
                 connections.push({
                     from: fromScreen,
                     to: toScreen,
                     fromPos,
                     toPos,
-                    bidirectional: isBidirectional
+                    bidirectional: isBidirectional,
+                    element: forwardFlow ? forwardFlow.element : null,
+                    reverseElement: reverseFlow ? reverseFlow.element : null,
+                    flowType: forwardFlow ? forwardFlow.type : 'navigation'
                 });
             }
 
@@ -2227,10 +1991,31 @@
             });
 
             // Draw connections
-            connections.forEach(({ from: screenId, to: targetId, fromPos, toPos, bidirectional }) => {
-                // Exit from bottom center of source
-                const fromX = fromPos.x + fromPos.width / 2;
-                const fromY = fromPos.y + fromPos.height;
+            connections.forEach(({ from: screenId, to: targetId, fromPos, toPos, bidirectional, element, reverseElement, flowType }) => {
+                // Calculate start position - use element if available
+                let fromX, fromY;
+                let hasElementCoords = false;
+
+                if (element && captureId) {
+                    const elemCoords = getElementCoords(captureId, screenId, element);
+                    if (elemCoords) {
+                        // Scale from device coordinates to map thumbnail coordinates
+                        const device = getDeviceDimensions(captureId, screenId);
+                        const scaleX = fromPos.width / device.width;
+                        const scaleY = fromPos.height / device.height;
+
+                        // Element center in map coordinates
+                        fromX = fromPos.x + (elemCoords.x + elemCoords.width / 2) * scaleX;
+                        fromY = fromPos.y + (elemCoords.y + elemCoords.height / 2) * scaleY;
+                        hasElementCoords = true;
+                    }
+                }
+
+                if (!hasElementCoords) {
+                    // Fallback: Exit from bottom center of source
+                    fromX = fromPos.x + fromPos.width / 2;
+                    fromY = fromPos.y + fromPos.height;
+                }
 
                 // Enter at top center of destination
                 const toX = toPos.x + toPos.width / 2;
@@ -2239,7 +2024,7 @@
                 const dx = toX - fromX;
                 const dy = toY - fromY;
 
-                const dropDistance = 50;
+                const dropDistance = hasElementCoords ? 30 : 50;
                 const approachDistance = 40;
 
                 let pathD;
@@ -2264,9 +2049,18 @@
 
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 path.setAttribute('d', pathD);
-                path.setAttribute('class', 'connection' + (bidirectional ? ' bidirectional' : ''));
+
+                // Build class list with flow type and element status
+                let pathClass = 'connection';
+                if (bidirectional) pathClass += ' bidirectional';
+                if (hasElementCoords) pathClass += ' has-element';
+                if (!hasElementCoords && element) pathClass += ' missing-element';
+                path.setAttribute('class', pathClass);
+
                 path.dataset.from = screenId;
                 path.dataset.to = targetId;
+                path.dataset.flowType = flowType;
+                if (element) path.dataset.element = element;
                 svg.appendChild(path);
 
                 // Arrow at destination (pointing down into target)
@@ -2334,16 +2128,12 @@
             container.addEventListener('touchstart', (e) => {
                 if (e.target.closest('.map-screen')) return;
                 e.preventDefault(); // Prevent pull-to-refresh
-
                 if (e.touches.length === 1) {
-                    // Single finger - pan
                     isTouching = true;
                     isDragging = true;
                     dragStartX = e.touches[0].clientX - mapTranslateX;
                     dragStartY = e.touches[0].clientY - mapTranslateY;
                 } else if (e.touches.length === 2) {
-                    // Two fingers - pinch zoom
-                    e.preventDefault();
                     isDragging = false;
                     lastTouchDistance = getTouchDistance(e.touches);
                     lastTouchCenter = getTouchCenter(e.touches, container);
@@ -2352,30 +2142,24 @@
 
             container.addEventListener('touchmove', (e) => {
                 if (e.touches.length === 1 && isDragging) {
-                    // Single finger pan
                     e.preventDefault(); // Prevent scroll/pull-to-refresh
                     mapTranslateX = e.touches[0].clientX - dragStartX;
                     mapTranslateY = e.touches[0].clientY - dragStartY;
                     updateMapTransform();
                 } else if (e.touches.length === 2) {
-                    // Pinch zoom
                     e.preventDefault();
                     const newDistance = getTouchDistance(e.touches);
                     const newCenter = getTouchCenter(e.touches, container);
-
                     if (lastTouchDistance > 0) {
                         const scaleDelta = newDistance / lastTouchDistance;
                         const pointX = (lastTouchCenter.x - mapTranslateX) / mapScale;
                         const pointY = (lastTouchCenter.y - mapTranslateY) / mapScale;
-
                         mapScale *= scaleDelta;
                         mapScale = Math.max(0.1, Math.min(3, mapScale));
-
                         mapTranslateX = newCenter.x - pointX * mapScale;
                         mapTranslateY = newCenter.y - pointY * mapScale;
                         updateMapTransform();
                     }
-
                     lastTouchDistance = newDistance;
                     lastTouchCenter = newCenter;
                 }
@@ -2387,7 +2171,6 @@
                     isTouching = false;
                     lastTouchDistance = 0;
                 } else if (e.touches.length === 1) {
-                    // Switched from pinch to single finger
                     isDragging = true;
                     dragStartX = e.touches[0].clientX - mapTranslateX;
                     dragStartY = e.touches[0].clientY - mapTranslateY;
@@ -2430,9 +2213,6 @@
                 btn.classList.toggle('active', mapIsPlaying);
             }
             if (mapIsPlaying) {
-                // Always restart from beginning when play is clicked
-                mapTimelineIdx = 0;
-                updateMapTimeline();
                 mapPlayLoop();
             } else if (mapPlaybackTimer) {
                 clearTimeout(mapPlaybackTimer);
@@ -2631,14 +2411,11 @@
             const counter = document.getElementById('evoCounter');
             const threshold = MANIFEST.changeThreshold || 0.5;
 
-            // Stop any playing animation
             stopEvolutionPlay();
 
-            // Update filter button states
             document.getElementById('evoChangesBtn').classList.toggle('active', !evolutionShowAll);
             document.getElementById('evoAllBtn').classList.toggle('active', evolutionShowAll);
 
-            // Get all captures that have this screen (screenCount > 0)
             const allCaptures = INDEX.captures.filter(c => c.screenCount > 0);
 
             if (allCaptures.length === 0) {
@@ -2648,10 +2425,9 @@
                 return;
             }
 
-            // Find which captures this screen meaningfully changed in
             const changedCaptureIds = new Set();
             allCaptures.forEach((capture, idx) => {
-                if (idx === 0) return; // First capture is baseline
+                if (idx === 0) return;
                 const changeData = INDEX.changeData?.[capture.id] || {};
                 const changePct = changeData[screenId];
                 if (changePct !== undefined && changePct > threshold) {
@@ -2659,11 +2435,9 @@
                 }
             });
 
-            // Filter captures based on mode
             if (evolutionShowAll) {
                 evolutionCaptures = allCaptures;
             } else {
-                // Changes only: include first capture (baseline) + any changed captures
                 evolutionCaptures = allCaptures.filter((c, idx) =>
                     idx === 0 || changedCaptureIds.has(c.id)
                 );
@@ -2675,11 +2449,9 @@
                 return;
             }
 
-            // Find current capture index in filtered list
             evolutionIdx = evolutionCaptures.findIndex(c => c.id === initialCaptureId);
             if (evolutionIdx < 0) evolutionIdx = evolutionCaptures.length - 1;
 
-            // Render filmstrip
             filmstrip.innerHTML = evolutionCaptures.map((capture, idx) => {
                 const isChanged = changedCaptureIds.has(capture.id);
                 const isActive = idx === evolutionIdx;
@@ -2701,7 +2473,6 @@
                 `;
             }).join('');
 
-            // Update counter
             const changedCount = changedCaptureIds.size;
             if (evolutionShowAll) {
                 counter.textContent = `${evolutionIdx + 1} / ${evolutionCaptures.length} (${changedCount} changes)`;
@@ -2709,7 +2480,6 @@
                 counter.textContent = `${evolutionIdx + 1} / ${evolutionCaptures.length} changes`;
             }
 
-            // Scroll to current frame
             setTimeout(() => {
                 const activeFrame = filmstrip.querySelector('.evolution-frame.active');
                 if (activeFrame) {
@@ -2731,15 +2501,12 @@
             evolutionIdx = idx;
             const capture = evolutionCaptures[idx];
 
-            // Update main modal image
             document.getElementById('modalImg').src = `${CAPTURES_DIR}/${capture.id}/${currentModalScreen}.png`;
 
-            // Update active state in filmstrip
             document.querySelectorAll('.evolution-frame').forEach((frame, i) => {
                 frame.classList.toggle('active', i === idx);
             });
 
-            // Update counter
             const counter = document.getElementById('evoCounter');
             if (evolutionShowAll) {
                 const threshold = MANIFEST.changeThreshold || 0.5;
@@ -2754,7 +2521,6 @@
                 counter.textContent = `${idx + 1} / ${evolutionCaptures.length} changes`;
             }
 
-            // Scroll to frame
             const filmstrip = document.getElementById('evolutionFilmstrip');
             const activeFrame = filmstrip.querySelector('.evolution-frame.active');
             if (activeFrame) {
@@ -2776,12 +2542,10 @@
             playBtn.textContent = '⏸ Pause';
             playBtn.classList.add('active');
 
-            // Start from beginning if at end
             if (evolutionIdx >= evolutionCaptures.length - 1) {
                 evolutionIdx = -1;
             }
 
-            // Advance every 500ms
             evolutionTimer = setInterval(() => {
                 evolutionIdx++;
                 if (evolutionIdx >= evolutionCaptures.length) {
@@ -3046,7 +2810,7 @@
             if (!miniMapIsPanning) return;
             if (e.touches.length === 1) {
                 miniMapPanX = e.touches[0].clientX - miniMapStartX;
-                miniMapPanY = e.touches[0].clientY - miniMapStartY;
+                miniMapPanY = e.touches[0].clientY - miniMapPanY;
                 document.getElementById('miniMapCanvas').style.transform = `translate(${miniMapPanX}px, ${miniMapPanY}px)`;
                 e.preventDefault();
             }
