@@ -131,12 +131,19 @@ extension XCTestCase {
     /// Get the output directory, creating if needed
     private func getOutputDirectory(folder: String) -> String? {
         let screenshotDir: String
-        if let outputDir = ProcessInfo.processInfo.environment["SCREENSHOT_OUTPUT_DIR"] {
+        if let outputDir = ProcessInfo.processInfo.environment["SCREENSHOT_OUTPUT_DIR"],
+           !outputDir.isEmpty {
             screenshotDir = outputDir
-        } else if let envDir = ProcessInfo.processInfo.environment["PROJECT_DIR"] {
+        } else if let envDir = ProcessInfo.processInfo.environment["PROJECT_DIR"],
+                  !envDir.isEmpty {
             screenshotDir = "\(envDir)/\(folder)"
-        } else if let srcRoot = ProcessInfo.processInfo.environment["SRCROOT"] {
+        } else if let srcRoot = ProcessInfo.processInfo.environment["SRCROOT"],
+                  !srcRoot.isEmpty {
             screenshotDir = "\(srcRoot)/\(folder)"
+        } else if let projectRoot = detectProjectRoot() {
+            // Fallback: detect project root from test bundle location
+            screenshotDir = "\(projectRoot)/Screenshots/captures"
+            print("[Darwin] Using detected project root: \(projectRoot)")
         } else {
             print("[Darwin] Warning: Could not determine output directory.")
             return nil
@@ -157,6 +164,51 @@ extension XCTestCase {
         }
 
         return screenshotDir
+    }
+
+    /// Detect project root by walking up from test bundle location
+    /// Looks for common project indicators: .git, .xcodeproj, .xcworkspace, Package.swift
+    private func detectProjectRoot() -> String? {
+        // Get the test bundle location
+        let testBundle = Bundle(for: type(of: self))
+        var currentPath = testBundle.bundleURL.deletingLastPathComponent()
+        let fileManager = FileManager.default
+
+        // Walk up the directory tree looking for project root indicators
+        let projectIndicators = [".git", "Package.swift"]
+        let projectExtensions = ["xcodeproj", "xcworkspace"]
+
+        for _ in 0..<20 { // Safety limit to prevent infinite loops
+            let path = currentPath.path
+
+            // Check for exact file/folder matches
+            for indicator in projectIndicators {
+                if fileManager.fileExists(atPath: "\(path)/\(indicator)") {
+                    return path
+                }
+            }
+
+            // Check for project/workspace files by extension
+            if let contents = try? fileManager.contentsOfDirectory(atPath: path) {
+                for item in contents {
+                    for ext in projectExtensions {
+                        if item.hasSuffix(".\(ext)") {
+                            return path
+                        }
+                    }
+                }
+            }
+
+            // Move up one directory
+            let parent = currentPath.deletingLastPathComponent()
+            if parent.path == currentPath.path {
+                // Reached filesystem root
+                break
+            }
+            currentPath = parent
+        }
+
+        return nil
     }
 
     /// Take a screenshot with a delay (for animations)

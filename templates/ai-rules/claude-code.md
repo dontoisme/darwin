@@ -75,6 +75,16 @@ enum ScreenIdentifiers {
 }
 ```
 
+## Screenshot Output Directory
+
+Darwin automatically detects where to save screenshots using this priority:
+
+1. `SCREENSHOT_OUTPUT_DIR` environment variable (set by Darwin CLI)
+2. `PROJECT_DIR` or `SRCROOT` environment variables
+3. **Fallback detection**: Walks up from test bundle location looking for project root indicators (`.git`, `.xcodeproj`, `.xcworkspace`, `Package.swift`) and saves to `<project_root>/Screenshots/captures/`
+
+The fallback is essential because xcodebuild doesn't propagate build settings to the test process environment. This ensures screenshots save to the filesystem even when environment variables aren't available.
+
 ## XCUITests for Darwin
 
 When writing screenshot tests:
